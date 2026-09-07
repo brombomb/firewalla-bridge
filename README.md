@@ -50,7 +50,7 @@ The pairing step registers your bridge container as an authorized local client o
 2. Select your box and go to: **Settings → Advanced → Allow Additional Pairing**.
 3. Toggle **Additional Pairing** to **ON**. A QR code will appear on your screen.
 4. Scan or screenshot the QR code and copy the raw JSON text (it looks like `{"gid":"...","seed":"...","license":"...","ek":"...","ipaddress":"..."}`).
-5. In your `tools/firewalla-bridge` directory, run:
+5. In your `firewalla-tronbyt-bridge` directory, run:
    ```bash
    docker compose run --rm firewalla-bridge npm run pair
    ```
@@ -88,7 +88,7 @@ All 3 Tronbyt apps (**Firewalla Network**, **Firewalla Top Talkers**, and **Fire
    ```
    http://192.168.1.15:7153
    ```
-   *(Replace `192.168.1.50` with the actual LAN IP of the machine running Docker)*
+   *(Replace `192.168.1.15` with the actual LAN IP of the machine running Docker)*
 3. Leave **API Token** blank.
 
 ---

@@ -1,0 +1,14 @@
+services:
+  firewalla-bridge:
+    build: .
+    container_name: firewalla-bridge
+    restart: unless-stopped
+    ports:
+      - "7153:7153"
+    environment:
+      - PORT=7153
+      - FIREWALLA_IP=192.168.1.1
+      - KEY_DIR=/app/keys
+      - BOX_NAME=Firewalla Purple
+    volumes:
+      - ./keys:/app/keys

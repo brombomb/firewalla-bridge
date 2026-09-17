@@ -1,0 +1,484 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Firewalla Local Bridge API",
+    "description": "Local REST gateway for Firewalla hardware connecting directly to local ETP (port 8833). Emulates standard Firewalla MSP REST endpoints for Postman, Home Assistant, Tronbyt, Tidbyt, and custom homelab dashboards.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Firewalla Local Bridge",
+      "url": "https://github.com/brombomb/firewalla-bridge"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Local Firewalla Bridge instance"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System",
+      "description": "Bridge health and system status"
+    },
+    {
+      "name": "Box",
+      "description": "Firewalla hardware details, WAN metrics, and telemetry"
+    },
+    {
+      "name": "Alarms",
+      "description": "Active security alerts and 7-day trend metrics"
+    },
+    {
+      "name": "Flows & Traffic",
+      "description": "Bandwidth consumption, top talkers, and 24h hourly threat activity"
+    },
+    {
+      "name": "Devices",
+      "description": "LAN devices, MAC addresses, and cumulative traffic"
+    },
+    {
+      "name": "Rules",
+      "description": "Firewall policy rules and activation trends"
+    },
+    {
+      "name": "Speed Test",
+      "description": "Internet WAN speed test diagnostics and history"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Bridge Health Check",
+        "description": "Returns current connection status to the Firewalla box, device counts, and active alarm summary. Minimal status is returned if API_TOKEN is configured without authorization.",
+        "responses": {
+          "200": {
+            "description": "Health diagnostic payload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "connected" },
+                    "firewallaIp": { "type": "string", "example": "192.168.1.1" },
+                    "boxName": { "type": "string", "example": "Firewalla Purple" },
+                    "cachedDevices": { "type": "integer", "example": 100 },
+                    "cachedAlarms": { "type": "integer", "example": 41 },
+                    "securityAlarms": { "type": "integer", "example": 13 },
+                    "ignoredAlarms": { "type": "integer", "example": 9 },
+                    "uptime": { "type": "number", "example": 3600 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/boxes": {
+      "get": {
+        "tags": ["Box"],
+        "summary": "Get Firewalla Box Details",
+        "description": "Returns box hardware model, WAN public IP, mode, firmware version, uptime, and client count.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List containing Firewalla box telemetry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "gid": { "type": "string", "example": "58350ccd-edb1-42a2-bece-33e8e8a27b79" },
+                      "name": { "type": "string", "example": "Firewalla Purple" },
+                      "model": { "type": "string", "example": "purple" },
+                      "mode": { "type": "string", "example": "router" },
+                      "online": { "type": "boolean", "example": true },
+                      "publicIp": { "type": "string", "example": "71.229.184.154" },
+                      "version": { "type": "string", "example": "1.983" },
+                      "uptime": { "type": "number", "example": 4989000 },
+                      "deviceCount": { "type": "integer", "example": 100 },
+                      "ruleCount": { "type": "integer", "example": 409 },
+                      "alarmCount": { "type": "integer", "example": 41 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/alarms": {
+      "get": {
+        "tags": ["Alarms"],
+        "summary": "Get Active Alarms",
+        "description": "Retrieves active security alerts. Automatically filters out muted notifications and whitelisted exception rules.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "securityOnly",
+            "in": "query",
+            "description": "Filter to high-priority security alarms only (malware, port scans, vulnerabilities)",
+            "schema": { "type": "boolean", "default": false }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Alternative filter: set to 'security'",
+            "schema": { "type": "string", "enum": ["security"] }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active alarms collection",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": { "type": "integer", "example": 13 },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "aid": { "type": "string", "example": "1001" },
+                          "type": { "type": "string", "example": "INTEL_MALWARE" },
+                          "message": { "type": "string", "example": "Blocked suspicious botnet communication" },
+                          "ts": { "type": "integer", "example": 1789616751 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/trends/alarms": {
+      "get": {
+        "tags": ["Alarms"],
+        "summary": "7-Day Alarm Trend",
+        "description": "Returns daily alarm counts binned across the past 7 days for sparklines and charts.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "7-day daily time-series array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "ts": { "type": "integer", "example": 1789094400 },
+                      "value": { "type": "integer", "example": 5 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/flows": {
+      "get": {
+        "tags": ["Flows & Traffic"],
+        "summary": "Top Bandwidth Talkers",
+        "description": "Returns top bandwidth consuming LAN devices sorted descending. Merges multi-NIC bonded hosts automatically.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "groupBy",
+            "in": "query",
+            "description": "Aggregation level (must be 'device')",
+            "schema": { "type": "string", "default": "device" }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "description": "Query window (e.g. '1h' for live 1-hour window, or 24h default)",
+            "schema": { "type": "string", "enum": ["1h", "24h"], "default": "24h" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of talkers to return (1-100)",
+            "schema": { "type": "integer", "default": 5 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Top bandwidth devices list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "device": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string", "example": "A6:86:5A:70:71:53" },
+                              "name": { "type": "string", "example": "Terra" },
+                              "ip": { "type": "string", "example": "192.168.1.15" }
+                            }
+                          },
+                          "download": { "type": "integer", "example": 3554439792 },
+                          "upload": { "type": "integer", "example": 19694234101 },
+                          "total": { "type": "integer", "example": 23248673893 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/trends/flows": {
+      "get": {
+        "tags": ["Flows & Traffic"],
+        "summary": "24-Hour Hourly Threat Distribution",
+        "description": "Returns actual security threat and alarm counts binned into 24 hourly buckets for Tidbyt / Tronbyt sparkline graphs.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "24 hourly buckets array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "ts": { "type": "integer", "example": 1789533951 },
+                      "value": { "type": "integer", "example": 3 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/devices": {
+      "get": {
+        "tags": ["Devices"],
+        "summary": "List All LAN Devices",
+        "description": "Returns all devices discovered on the local network with IP, MAC, online state, and cumulative traffic metrics.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "List of network devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": { "type": "string", "example": "A6:86:5A:70:71:53" },
+                      "name": { "type": "string", "example": "Terra" },
+                      "ip": { "type": "string", "example": "192.168.1.15" },
+                      "online": { "type": "boolean", "example": true },
+                      "totalDownload": { "type": "number", "example": 3554439792 },
+                      "totalUpload": { "type": "number", "example": 19694234101 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/rules": {
+      "get": {
+        "tags": ["Rules"],
+        "summary": "List Firewall Policy Rules",
+        "description": "Returns active and paused firewall rules configured on the Firewalla box.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "action",
+            "in": "query",
+            "description": "Filter by rule action",
+            "schema": { "type": "string", "enum": ["block", "allow"] }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Filter by rule type (e.g. 'traffic', 'dns', 'ip')",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Limit returned rules count",
+            "schema": { "type": "integer" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Firewall policy rules array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": { "type": "integer", "example": 409 },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": { "type": "string", "example": "1" },
+                          "name": { "type": "string", "example": "Ad Block" },
+                          "status": { "type": "string", "example": "active" },
+                          "action": { "type": "string", "example": "block" },
+                          "type": { "type": "string", "example": "traffic" },
+                          "target": { "type": "string", "example": "Ad Sites" },
+                          "category": { "type": "string", "example": "system" },
+                          "direction": { "type": "string", "example": "bidirection" },
+                          "ts": { "type": "integer", "example": 1789500000 }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/trends/rules": {
+      "get": {
+        "tags": ["Rules"],
+        "summary": "24-Hour Rule Activation Trend",
+        "description": "Returns rule activation counts binned into 24 hourly buckets.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "24 hourly buckets array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "ts": { "type": "integer", "example": 1789533951 },
+                      "value": { "type": "integer", "example": 1 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/speedtest": {
+      "get": {
+        "tags": ["Speed Test"],
+        "summary": "Internet WAN Speed Test Diagnostics",
+        "description": "Returns the latest WAN download, upload, latency, jitter, ISP name, and packet loss metrics.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "history",
+            "in": "query",
+            "description": "Include past speedtest run history",
+            "schema": { "type": "boolean", "default": false }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Number of past historical runs (max 50)",
+            "schema": { "type": "integer", "default": 10 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Speed test result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "available": { "type": "boolean", "example": true },
+                    "latest": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": { "type": "integer", "example": 1789547126 },
+                        "downloadMbps": { "type": "number", "example": 886.1 },
+                        "uploadMbps": { "type": "number", "example": 118.2 },
+                        "latencyMs": { "type": "number", "example": 11.8 },
+                        "jitterMs": { "type": "number", "example": 3.6 },
+                        "packetLoss": { "type": "number", "example": 0 },
+                        "isp": { "type": "string", "example": "XFINITY" },
+                        "publicIp": { "type": "string", "example": "71.229.184.154" },
+                        "server": { "type": "string", "example": "NextLight (Denver, CO)" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/openapi.json": {
+      "get": {
+        "tags": ["System"],
+        "summary": "OpenAPI / Swagger 3.0 Specification",
+        "description": "Returns this complete OpenAPI 3.0.3 specification in JSON format for direct import into Postman, Insomnia, or Swagger UI.",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.0 JSON specification document",
+            "content": {
+              "application/json": {
+                "schema": { "type": "object" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "TokenAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Authorization",
+        "description": "Supply token matching MSP format: `Token <your_token>`"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Standard Bearer token header: `Bearer <your_token>`"
+      }
+    }
+  }
+}

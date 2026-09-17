@@ -177,6 +177,17 @@
       </div>
     </div>
 
+    <div style="margin: 1.5rem 0; padding: 1rem; background: #1F242C; border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.8rem;">
+      <div>
+        <div style="font-weight: 600; font-size: 0.95rem; color: #fff;">📥 Postman & Swagger OpenAPI Spec</div>
+        <div style="font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem;">Import directly into Postman, Insomnia, or test in browser.</div>
+      </div>
+      <div style="display: flex; gap: 0.5rem;">
+        <a href="/docs" target="_blank" style="padding: 0.4rem 0.8rem; background: #238636; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">Interactive Docs</a>
+        <button id="copySpecBtn" onclick="copySpecUrl()" style="padding: 0.4rem 0.8rem; background: #30363D; color: #fff; border: 1px solid var(--border); border-radius: 6px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">Copy Spec URL</button>
+      </div>
+    </div>
+
     <h3>Available REST Endpoints</h3>
     <ul class="endpoints">
       <li><a href="/health">/health</a> <span class="desc">Health check</span></li>
@@ -187,6 +198,8 @@
       <li><a href="/v2/devices">/v2/devices</a> <span class="desc">All LAN devices</span></li>
       <li><a href="/v2/rules">/v2/rules</a> <span class="desc">Firewall policy rules</span></li>
       <li><a href="/v2/speedtest">/v2/speedtest</a> <span class="desc">WAN speed test metrics</span></li>
+      <li><a href="/openapi.json">/openapi.json</a> <span class="desc">OpenAPI 3.0 / Swagger spec</span></li>
+      <li><a href="/docs">/docs</a> <span class="desc">Interactive API reference</span></li>
     </ul>
 
     <div class="tip">
@@ -197,6 +210,15 @@
 
   <script>
     document.getElementById('bridgeUrl').textContent = window.location.origin;
+
+    function copySpecUrl() {
+      const url = window.location.origin + '/openapi.json';
+      navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('copySpecBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy Spec URL'; }, 2000);
+      });
+    }
 
     async function loadStats() {
       try {

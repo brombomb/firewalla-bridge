@@ -90,4 +90,28 @@ router.get('/health', asyncHandler(async (req, res) => {
   });
 }));
 
+const OPENAPI_JSON_PATH = path.resolve(__dirname, '../../public/openapi.json');
+
+// GET /swagger.json: Alias for /openapi.json
+router.get('/swagger.json', (req, res) => {
+  res.sendFile(OPENAPI_JSON_PATH);
+});
+
+// GET /docs: Interactive API documentation (Scalar)
+router.get('/docs', (req, res) => {
+  res.send(`<!doctype html>
+<html>
+  <head>
+    <title>Firewalla Bridge API Documentation</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>body { margin: 0; background: #0d1117; }</style>
+  </head>
+  <body>
+    <script id="api-reference" data-url="/openapi.json"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  </body>
+</html>`);
+});
+
 export default router;

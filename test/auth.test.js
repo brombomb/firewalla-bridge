@@ -71,17 +71,16 @@ describe('Authentication Middleware (src/middleware/auth.js)', () => {
       assert.equal(isAuthenticated(req), false);
     });
 
-    it('authMiddleware passes through / and /health even if unauthenticated', () => {
+    it('authMiddleware passes through /, /health, /docs, /openapi.json, and /swagger.json unauthenticated', () => {
       process.env.API_TOKEN = 'test-token';
-      let nextCalled = false;
-      const req = { path: '/health', headers: {} };
-      const res = {};
-      const next = () => {
-        nextCalled = true;
-      };
-
-      authMiddleware(req, res, next);
-      assert.equal(nextCalled, true);
+      const paths = ['/', '/health', '/docs', '/openapi.json', '/swagger.json'];
+      for (const p of paths) {
+        let nextCalled = false;
+        authMiddleware({ path: p, headers: {} }, {}, () => {
+          nextCalled = true;
+        });
+        assert.equal(nextCalled, true, `Expected ${p} to pass through authMiddleware unauthenticated`);
+      }
     });
 
     it('authMiddleware rejects protected endpoints with 401 when unauthenticated', () => {

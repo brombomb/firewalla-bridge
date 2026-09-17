@@ -51,8 +51,14 @@ export function authMiddleware(req, res, next) {
     return next();
   }
 
-  // Allow root path and health check through middleware (handlers handle redaction)
-  if (req.path === '/' || req.path === '/health') {
+  // Allow root path, health check, documentation, and OpenAPI spec through middleware
+  if (
+    req.path === '/' ||
+    req.path === '/health' ||
+    req.path === '/docs' ||
+    req.path === '/openapi.json' ||
+    req.path === '/swagger.json'
+  ) {
     return next();
   }
 

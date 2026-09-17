@@ -19,10 +19,7 @@ const PORT = process.env.PORT || 7153;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Static files (dashboard HTML/CSS/assets)
-app.use(express.static(path.resolve(__dirname, '../public')));
-
-// CORS middleware
+// CORS middleware (applies to all endpoints including static assets)
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', CORS_ORIGIN);
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
@@ -32,6 +29,9 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// Static files (dashboard HTML/CSS/assets and openapi.json)
+app.use(express.static(path.resolve(__dirname, '../public')));
 
 // Authentication middleware (validates API_TOKEN if configured)
 app.use(authMiddleware);

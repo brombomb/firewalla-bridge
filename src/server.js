@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { initFirewalla, FIREWALLA_IP } from './client/firewalla.js';
 import { authMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -14,6 +16,10 @@ import speedtestRoutes from './routes/speedtest.js';
 
 const app = express();
 const PORT = process.env.PORT || 7153;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Static files (dashboard HTML/CSS/assets)
+app.use(express.static(path.resolve(__dirname, '../public')));
 
 // CORS middleware
 app.use((req, res, next) => {

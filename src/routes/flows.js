@@ -16,22 +16,22 @@ router.get('/v2/trends/flows', async (req, res) => {
   const appConfs = initData.appConfs || {};
 
   const alarms = getActiveAlarms(rawAlarms, rules, appConfs, false);
-  const blockedCount = alarms.filter((a) => {
-    const m = (a.message || a.desc || a.title || '').toLowerCase();
-    return m.includes('block') || m.includes('suspicious') || m.includes('intel');
-  }).length;
-
   const nowSec = Math.floor(Date.now() / 1000);
-  const baseline = Math.max(18, blockedCount * 3);
-  const hourlyCurve = [
-    0.35, 0.25, 0.20, 0.30, 0.45, 0.70, 1.10, 1.35,
-    1.15, 0.90, 0.80, 0.95, 1.25, 1.50, 1.40, 1.10,
-    0.95, 1.20, 1.55, 1.75, 1.45, 1.05, 0.65, 0.45,
-  ];
+  const hourlyCounts = new Array(24).fill(0);
 
-  const results = hourlyCurve.map((mult, idx) => ({
+  // Group real active alarms / threats by actual timestamp into 24 one-hour buckets
+  for (const a of alarms) {
+    const ts = parseFloat(a.timestamp || a.alarmTimestamp || 0);
+    if (!ts) continue;
+    const hoursAgo = Math.floor((nowSec - ts) / 3600);
+    if (hoursAgo >= 0 && hoursAgo < 24) {
+      hourlyCounts[23 - hoursAgo]++;
+    }
+  }
+
+  const results = hourlyCounts.map((count, idx) => ({
     ts: nowSec - (23 - idx) * 3600,
-    value: Math.max(5, Math.round(baseline * mult)),
+    value: count,
   }));
 
   res.json(results);

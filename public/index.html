@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firewalla Local Bridge</title>
+  <style>
+    :root {
+      --bg: #0D1117;
+      --card-bg: #161B22;
+      --border: #30363D;
+      --text: #ECEFF1;
+      --muted: #8B949E;
+      --accent: #FF5722;
+      --cyan: #00E5FF;
+      --green: #3ED860;
+      --green-bg: #1B4728;
+      --red: #FF5252;
+      --red-bg: #4D1F1D;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 2rem 1rem;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 2rem;
+      max-width: 620px;
+      width: 100%;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    h1 {
+      margin-top: 0;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 1.6rem;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.9rem;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+    .status-badge.connected {
+      background: var(--green-bg);
+      color: var(--green);
+      border: 1px solid rgba(62, 216, 96, 0.3);
+    }
+    .status-badge.unpaired {
+      background: var(--red-bg);
+      color: var(--red);
+      border: 1px solid rgba(255, 82, 82, 0.3);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-item {
+      background: #1F242C;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.8rem 1rem;
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .stat-val {
+      font-size: 1.25rem;
+      font-weight: bold;
+      color: #FFF;
+      margin-top: 0.2rem;
+    }
+    h3 {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+      margin-top: 1.5rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    ul.endpoints {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      gap: 0.5rem;
+    }
+    ul.endpoints li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.4rem 0.6rem;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.02);
+    }
+    ul.endpoints a {
+      color: var(--cyan);
+      text-decoration: none;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.95rem;
+    }
+    ul.endpoints a:hover {
+      text-decoration: underline;
+    }
+    ul.endpoints span.desc {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .tip {
+      background: #1C2128;
+      border-left: 3px solid var(--accent);
+      padding: 0.9rem 1rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      color: #C9D1D9;
+      margin-top: 1.5rem;
+      line-height: 1.5;
+    }
+    code {
+      background: #2D333B;
+      padding: 0.2rem 0.45rem;
+      border-radius: 4px;
+      color: #FFAB91;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+    }
+    .pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🔥 Firewalla Local Bridge</h1>
+    <div id="statusBadge" class="status-badge unpaired">
+      <span class="pulse"></span> <span id="statusText">CONNECTING...</span>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-label">Box</div>
+        <div id="boxName" class="stat-val">Loading...</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Devices</div>
+        <div id="cachedDevices" class="stat-val">-</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Security Threats</div>
+        <div id="threatAlarms" class="stat-val" style="color: #FF7043">-</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Total Alarms</div>
+        <div id="activeAlarms" class="stat-val">-</div>
+      </div>
+    </div>
+
+    <h3>Available REST Endpoints</h3>
+    <ul class="endpoints">
+      <li><a href="/health">/health</a> <span class="desc">Health check</span></li>
+      <li><a href="/v2/boxes">/v2/boxes</a> <span class="desc">Box details, WAN IP & uptime</span></li>
+      <li><a href="/v2/alarms">/v2/alarms</a> <span class="desc">Active security alerts</span></li>
+      <li><a href="/v2/trends/flows">/v2/trends/flows</a> <span class="desc">24h threat sparkline data</span></li>
+      <li><a href="/v2/flows?groupBy=device">/v2/flows?groupBy=device</a> <span class="desc">Top bandwidth devices</span></li>
+      <li><a href="/v2/devices">/v2/devices</a> <span class="desc">All LAN devices</span></li>
+      <li><a href="/v2/rules">/v2/rules</a> <span class="desc">Firewall policy rules</span></li>
+      <li><a href="/v2/speedtest">/v2/speedtest</a> <span class="desc">WAN speed test metrics</span></li>
+    </ul>
+
+    <div class="tip">
+      <strong>Tronbyt / Home Assistant Setting:</strong><br>
+      Set Bridge Address in your apps to: <code id="bridgeUrl">http://...</code>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('bridgeUrl').textContent = window.location.origin;
+
+    async function loadStats() {
+      try {
+        const res = await fetch('/health');
+        if (!res.ok) throw new Error('Health check returned ' + res.status);
+        const data = await res.json();
+
+        const badge = document.getElementById('statusBadge');
+        const text = document.getElementById('statusText');
+
+        if (data.status === 'connected') {
+          badge.className = 'status-badge connected';
+          text.textContent = 'CONNECTED';
+        } else {
+          badge.className = 'status-badge unpaired';
+          text.textContent = 'UNPAIRED (Check Keys)';
+        }
+
+        document.getElementById('boxName').textContent = data.boxName || 'Firewalla';
+        document.getElementById('cachedDevices').textContent = data.cachedDevices ?? 0;
+        document.getElementById('threatAlarms').textContent = data.securityAlarms ?? 0;
+        document.getElementById('activeAlarms').textContent = data.cachedAlarms ?? 0;
+      } catch (err) {
+        document.getElementById('statusBadge').className = 'status-badge unpaired';
+        document.getElementById('statusText').textContent = 'UNREACHABLE';
+      }
+    }
+
+    loadStats();
+    setInterval(loadStats, 30000);
+  </script>
+</body>
+</html>

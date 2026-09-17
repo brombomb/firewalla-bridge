@@ -6,7 +6,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "pair": "node src/pair.js"
+    "pair": "node src/pair.js",
+    "test": "node --test test/**/*.test.js"
   },
   "dependencies": {
     "express": "^4.19.2",

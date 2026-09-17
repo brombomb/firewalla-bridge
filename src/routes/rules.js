@@ -60,19 +60,23 @@ router.get('/v2/trends/rules', async (req, res) => {
   await refreshCache();
   const initData = getInitData();
   const rawRules = initData.policyRules || [];
-  const activeCount = rawRules.filter((r) => !r.paused).length;
 
   const nowSec = Math.floor(Date.now() / 1000);
-  const baseline = Math.max(10, activeCount);
-  const hourlyCurve = [
-    0.50, 0.40, 0.30, 0.30, 0.40, 0.60, 0.90, 1.10,
-    1.00, 0.90, 0.85, 0.95, 1.05, 1.20, 1.10, 1.00,
-    0.95, 1.10, 1.30, 1.40, 1.25, 1.00, 0.70, 0.55,
-  ];
+  const hourlyCounts = new Array(24).fill(0);
 
-  const results = hourlyCurve.map((mult, idx) => ({
+  // Group real rule activations by timestamp into 24 one-hour buckets
+  for (const r of rawRules) {
+    const ts = parseFloat(r.lastActivatedTime || r.activatedTime || r.timestamp || 0);
+    if (!ts) continue;
+    const hoursAgo = Math.floor((nowSec - ts) / 3600);
+    if (hoursAgo >= 0 && hoursAgo < 24) {
+      hourlyCounts[23 - hoursAgo]++;
+    }
+  }
+
+  const results = hourlyCounts.map((count, idx) => ({
     ts: nowSec - (23 - idx) * 3600,
-    value: Math.max(1, Math.round(baseline * mult)),
+    value: count,
   }));
 
   res.json(results);

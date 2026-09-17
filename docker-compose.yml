@@ -4,12 +4,14 @@ services:
     container_name: firewalla-bridge
     restart: unless-stopped
     ports:
-      - "7153:7153"
+      - "${PORT:-7153}:${PORT:-7153}"
     environment:
-      - PORT=7153
-      - FIREWALLA_IP=192.168.1.1
+      - PORT=${PORT:-7153}
+      - FIREWALLA_IP=${FIREWALLA_IP:-192.168.1.1}
       - KEY_DIR=/app/keys
-      - BOX_NAME=Firewalla Purple
+      - BOX_NAME=${BOX_NAME:-Firewalla Purple}
+      # Optional: Secure with API token (Header "Authorization: Token <token>")
+      # - API_TOKEN=your_token_here
       # Optional: Merge bonded/multi-NIC servers (Name:IP:MAC1,MAC2)
       # - MERGE_DEVICES=Terra:192.168.1.15:a6:86:5a:70:71:53,e8:ff:1e:d8:f5:81
     volumes:

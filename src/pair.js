@@ -6,7 +6,7 @@ import fs from 'fs';
 const KEY_DIR = process.env.KEY_DIR || './keys';
 
 if (!fs.existsSync(KEY_DIR)) {
-  fs.mkdirSync(KEY_DIR, { recursive: true });
+  fs.mkdirSync(KEY_DIR, { recursive: true, mode: 0o700 });
 }
 
 async function run() {
@@ -23,7 +23,7 @@ async function run() {
       type: 'input',
       name: 'email',
       message: 'Email label (for identification only):',
-      default: 'tronbyt@home.local',
+      default: 'bridge@home.local',
       validate: (email) => (!validator.isEmail(email) ? 'Invalid email' : true),
     },
     {
@@ -58,12 +58,13 @@ async function run() {
     const privKeyPath = `${KEY_DIR}/etp.private.pem`;
     const pubKeyPath = `${KEY_DIR}/etp.public.pem`;
 
-    fs.writeFileSync(privKeyPath, SecureUtil.privateKey, 'utf8');
-    fs.writeFileSync(pubKeyPath, SecureUtil.publicKey, 'utf8');
+    // Security: Restrict private key permissions to owner read/write (0600)
+    fs.writeFileSync(privKeyPath, SecureUtil.privateKey, { encoding: 'utf8', mode: 0o600 });
+    fs.writeFileSync(pubKeyPath, SecureUtil.publicKey, { encoding: 'utf8', mode: 0o644 });
 
     console.log('\n==============================================');
     console.log('   Pairing Successful! Keys saved to:        ');
-    console.log(`   - ${privKeyPath}`);
+    console.log(`   - ${privKeyPath} (mode: 0600)`);
     console.log(`   - ${pubKeyPath}`);
     console.log('==============================================\n');
     console.log('You can now start the bridge service with:');

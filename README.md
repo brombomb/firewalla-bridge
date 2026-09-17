@@ -1,6 +1,6 @@
 # Firewalla Local Bridge
 
-A lightweight, self-hosted Docker bridge that connects directly to your Firewalla box's local API (on port 8833) and translates it into clean REST endpoints compatible with **Tronbyt**, **Tidbyt**, **Home Assistant**, and custom homelab dashboards.
+A lightweight, modular, self-hosted Docker bridge that connects directly to your Firewalla box's local API (port 8833) and translates it into clean REST endpoints compatible with **Tronbyt**, **Tidbyt**, **Home Assistant**, and custom homelab dashboards.
 
 **No paid Firewalla MSP subscription required.** Works with standalone Firewalla boxes (Purple, Gold, Red, Blue) and boxes on MSP Lite.
 
@@ -9,19 +9,42 @@ A lightweight, self-hosted Docker bridge that connects directly to your Firewall
 ## ✨ Features
 
 * **Zero Cloud Dependency:** Communicates directly with your Firewalla box over your local LAN (ETP on port 8833).
-* **MSP REST Compatibility:** Emulates standard Firewalla MSP endpoints (`/v2/boxes`, `/v2/alarms`, `/v2/flows`, `/v2/trends/flows`, etc.).
-* **One-Step QR Pairing:** Built-in interactive pairing wizard (`npm run pair`) handles cryptographic key generation and box authorization in seconds.
+* **MSP REST Compatibility:** Emulates standard Firewalla MSP endpoints (`/v2/boxes`, `/v2/alarms`, `/v2/flows`, `/v2/rules`, etc.).
+* **Home Assistant Ready:** Exposes `/v2/rules` and `/v2/speedtest` for easy sensor/switch automation.
+* **One-Step QR Pairing:** Built-in pairing wizard (`npm run pair`) handles cryptographic key generation with secure `0600` permissions.
+* **Single-Flight Cache Lock:** Prevents cache stampedes and eliminates redundant cryptographic requests to the Firewalla box.
 * **Smart Alarm Filtering:** Automatically filters out muted notifications and exception/whitelisted rules to match real security events.
-* **Bonded NIC / Multi-MAC Merging:** Optionally aggregates multi-NIC servers (e.g. LACP or `balance-alb` bonds) into a single virtual device so stats aren't split across ports.
-* **Lightweight:** Built on Node 20 Alpine with a minimal memory footprint (~35 MB RAM).
+* **Bonded NIC / Multi-MAC Merging:** Aggregates multi-NIC servers (e.g. LACP or `balance-alb` bonds) into a single virtual device.
+* **Optional Token Authentication:** Protects sensitive LAN device telemetry with standard `Authorization: Token <token>` headers.
+* **Modular Codebase:** Clean Express architecture separated into `client`, `middleware`, `routes`, and `utils`.
 
 ---
 
-## 📦 Architecture & Requirements
+## 📂 Project Architecture
 
-* **Base Container:** `node:20-alpine` (< 100 MB image)
-* **Default Port:** `7153` (configurable via `PORT` environment variable)
-* **Local Access:** Your Docker host must be able to route to your Firewalla's LAN IP address on port `8833`.
+```
+src/
+├── client/
+│   ├── cache.js         # In-memory cache & helper getters
+│   └── firewalla.js     # ETP client init, box services & single-flight refresh
+├── middleware/
+│   ├── auth.js          # Optional API_TOKEN authentication
+│   └── errorHandler.js  # Centralized error handler
+├── routes/
+│   ├── index.js         # '/' (HTML dashboard) & '/health'
+│   ├── boxes.js         # '/v2/boxes' (enriched telemetry)
+│   ├── alarms.js        # '/v2/alarms', '/v2/trends/alarms'
+│   ├── flows.js         # '/v2/flows', '/v2/trends/flows'
+│   ├── devices.js       # '/v2/devices'
+│   ├── rules.js         # '/v2/rules' (MSP policy rules)
+│   └── speedtest.js     # '/v2/speedtest' (latest & history)
+├── utils/
+│   ├── alarms.js        # Alarm exception & disturbance filters
+│   ├── merge.js         # NIC bonding / multi-MAC parser
+│   └── sanitize.js      # HTML escaping & query string guards
+├── pair.js              # One-time cryptographic pairing tool
+└── server.js            # Express application coordinator
+```
 
 ---
 
@@ -50,7 +73,7 @@ The pairing step registers your bridge container as an authorized local client o
    * **Email label:** Enter an identifier (e.g. `dashboard@home.local` — used only for display in the app).
    * **QR code JSON:** Paste the JSON string from step 4.
    * **Firewalla IP:** Enter your Firewalla box's local LAN IP (e.g. `192.168.1.1`).
-7. The pairing script generates your cryptographic keys (`etp.private.pem` and `etp.public.pem`) directly in the `./keys/` directory.
+7. The pairing script generates your cryptographic keys (`etp.private.pem` and `etp.public.pem`) directly in the `./keys/` directory with `0600` permissions.
 
 ### Step 3: Start the Bridge
 
@@ -87,11 +110,21 @@ You can configure options in `docker-compose.yml` or a `.env` file:
 | `FIREWALLA_IP` | `192.168.1.1` | LAN IP of your Firewalla box |
 | `KEY_DIR` | `/app/keys` | Directory inside container storing `etp.*.pem` |
 | `BOX_NAME` | *(auto-detected)* | Custom display name override for your box |
+| `API_TOKEN` | *(disabled)* | If set, requires `Authorization: Token <token>` |
 | `MERGE_DEVICES` | *(empty)* | Rules to aggregate multi-NIC / bonded servers |
+
+### 🔒 Securing with an API Token (Optional)
+
+To prevent unauthorized devices on your LAN from accessing network telemetry:
+1. Add `API_TOKEN=your_secret_token` to your environment.
+2. Supply the header in your requests:
+   ```bash
+   curl -H "Authorization: Token your_secret_token" http://localhost:7153/v2/devices
+   ```
 
 ### 🔗 Merging Bonded Interfaces (Optional)
 
-If you have a home server or NAS using link aggregation (e.g. Linux `bond0` in `balance-alb` or `802.3ad` mode), Firewalla sees traffic across multiple physical MAC addresses. You can merge them into a single device using `MERGE_DEVICES`.
+If you have a home server or NAS using link aggregation (e.g. Linux `bond0` in `balance-alb` or `802.3ad` mode), Firewalla sees traffic across multiple physical MAC addresses. You can merge them into a single virtual device using `MERGE_DEVICES`.
 
 #### Shorthand format:
 ```env
@@ -106,21 +139,6 @@ environment:
   - MERGE_DEVICES=Terra:192.168.1.15:a6:86:5a:70:71:53,e8:ff:1e:d8:f5:81
 ```
 
-#### JSON format (also supported):
-```env
-MERGE_DEVICES='[{"name":"Terra","ip":"192.168.1.15","primaryId":"A6:86:5A:70:71:53","macs":["a6:86:5a:70:71:53","e8:ff:1e:d8:f5:81"]}]'
-```
-
----
-
-## 📱 Dashboard Integration
-
-### Tronbyt / Tidbyt Apps
-All Tronbyt Firewalla apps (**Firewalla Network**, **Firewalla Top Talkers**, and **Firewalla Security**) support Local Bridge mode:
-1. In Tronbyt app settings, set **Connection** to `Local Bridge (Docker / LAN)`.
-2. In **Bridge Address**, enter `http://<YOUR_DOCKER_HOST_IP>:7153`.
-3. Leave **API Token** blank.
-
 ---
 
 ## 📡 Available API Endpoints
@@ -128,10 +146,12 @@ All Tronbyt Firewalla apps (**Firewalla Network**, **Firewalla Top Talkers**, an
 | Endpoint | Description |
 | :--- | :--- |
 | `GET /health` | Bridge connection status, device count, and active alarm count |
-| `GET /v2/boxes` | Box model, name, mode, connected client count, and alarm summary |
+| `GET /v2/boxes` | Box model, name, mode, WAN IP, firmware version, uptime, client & rule counts |
+| `GET /v2/rules` | Firewall policy rules with action, target, category, and status |
+| `GET /v2/trends/rules` | Rule activity trend line |
+| `GET /v2/speedtest` | Latest WAN speed test results (download, upload, latency, jitter, loss) |
 | `GET /v2/alarms` | Active security alerts (auto-filters muted/whitelisted rules) |
 | `GET /v2/alarms?filter=security` | Active security threat alarms only |
-| `GET /v2/trends/flows` | 24-hour blocked threat volume for sparklines |
 | `GET /v2/trends/alarms` | 7-day alarm frequency trend |
 | `GET /v2/flows?groupBy=device` | Top bandwidth consumers sorted descending (supports `?period=1h`) |
 | `GET /v2/devices` | All LAN devices with download/upload stats and online state |
@@ -141,7 +161,9 @@ All Tronbyt Firewalla apps (**Firewalla Network**, **Firewalla Top Talkers**, an
 ## 🔒 Security
 
 * **Never commit your `./keys/` directory.** It contains private RSA keys generated during the pairing step that grant read access to your Firewalla box.
-* The `.gitignore` in this repo is preconfigured to ignore `keys/*.pem` and `.env`.
+* Private keys are generated with `0600` permissions.
+* Web dashboard HTML outputs are sanitized against host-header reflection.
+* Optional `API_TOKEN` protects against unauthenticated local network queries.
 
 ---
 

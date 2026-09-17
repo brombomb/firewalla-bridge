@@ -14,4 +14,5 @@ services:
       # - MERGE_DEVICES=Terra:192.168.1.15:a6:86:5a:70:71:53,e8:ff:1e:d8:f5:81
     volumes:
       - ./keys:/app/keys
-      - ./server.js:/app/server.js
+      - ./src:/app/src
+      - ./package.json:/app/package.json

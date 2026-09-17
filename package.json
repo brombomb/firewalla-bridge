@@ -1,12 +1,12 @@
 {
   "name": "firewalla-bridge",
   "version": "1.0.0",
-  "description": "Local Firewalla API Bridge for Tronbyt and Home Automation",
+  "description": "Local Firewalla API Bridge for Tronbyt, Tidbyt, and Home Automation",
   "type": "module",
-  "main": "server.js",
+  "main": "src/server.js",
   "scripts": {
-    "start": "node server.js",
-    "pair": "node pair.js"
+    "start": "node src/server.js",
+    "pair": "node src/pair.js"
   },
   "dependencies": {
     "express": "^4.19.2",

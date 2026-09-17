@@ -20,6 +20,9 @@ let alarmService = null;
 let networkService = null;
 let initService = null;
 
+// Single-flight promise lock to prevent concurrent initialization races
+let initPromise = null;
+
 // Single-flight promise lock to prevent parallel cache stampedes
 let refreshPromise = null;
 
@@ -42,6 +45,9 @@ export function getBoxDisplayName() {
 }
 
 export async function initFirewalla() {
+  if (fwGroup) return true;
+  if (initPromise) return initPromise;
+
   const privKeyPath = `${KEY_DIR}/etp.private.pem`;
   const pubKeyPath = `${KEY_DIR}/etp.public.pem`;
 
@@ -52,53 +58,62 @@ export async function initFirewalla() {
     return false;
   }
 
-  try {
-    const privKey = fs.readFileSync(privKeyPath, 'utf8');
-    const pubKey = fs.readFileSync(pubKeyPath, 'utf8');
+  initPromise = (async () => {
+    try {
+      const privKey = fs.readFileSync(privKeyPath, 'utf8');
+      const pubKey = fs.readFileSync(pubKeyPath, 'utf8');
 
-    SecureUtil.importKeyPairFromString(pubKey, privKey);
+      SecureUtil.importKeyPairFromString(pubKey, privKey);
 
-    console.log(`Connecting to Firewalla at ${FIREWALLA_IP}...`);
-    const { groups } = await FWGroupApi.login();
+      console.log(`Connecting to Firewalla at ${FIREWALLA_IP}...`);
+      const { groups } = await FWGroupApi.login();
 
-    if (!groups || groups.length === 0) {
-      console.error('No Firewalla boxes returned from login.');
+      if (!groups || groups.length === 0) {
+        console.error('No Firewalla boxes returned from login.');
+        return false;
+      }
+
+      fwGroup = FWGroup.fromJson(groups[0], FIREWALLA_IP);
+      hostService = new HostService(fwGroup);
+      alarmService = new AlarmService(fwGroup);
+      networkService = new NetworkService(fwGroup);
+      initService = new InitService(fwGroup);
+
+      // Auto-detect model and friendly name from encrypted metadata
+      try {
+        const symKey = fwGroup.getSymmetricKey();
+        if (groups[0].info) {
+          const decryptedInfo = JSON.parse(SecureUtil.aesDecrypt(groups[0].info, symKey));
+          if (decryptedInfo.model) {
+            fwGroup.model = decryptedInfo.model;
+          }
+        }
+        if (groups[0].xname) {
+          fwGroup.friendlyName = SecureUtil.aesDecrypt(groups[0].xname, symKey);
+        }
+      } catch (e) {
+        console.warn('Could not decrypt group metadata:', e.message || e);
+      }
+
+      console.log(`✅ Connected to Firewalla box: ${getBoxDisplayName()} (${groups[0].name})`);
+      return true;
+    } catch (err) {
+      console.error('Failed to initialize Firewalla client:', err.message || err);
+      fwGroup = null;
       return false;
     }
+  })();
 
-    fwGroup = FWGroup.fromJson(groups[0], FIREWALLA_IP);
-    hostService = new HostService(fwGroup);
-    alarmService = new AlarmService(fwGroup);
-    networkService = new NetworkService(fwGroup);
-    initService = new InitService(fwGroup);
-
-    // Auto-detect model and friendly name from encrypted metadata
-    try {
-      const symKey = fwGroup.getSymmetricKey();
-      if (groups[0].info) {
-        const decryptedInfo = JSON.parse(SecureUtil.aesDecrypt(groups[0].info, symKey));
-        if (decryptedInfo.model) {
-          fwGroup.model = decryptedInfo.model;
-        }
-      }
-      if (groups[0].xname) {
-        fwGroup.friendlyName = SecureUtil.aesDecrypt(groups[0].xname, symKey);
-      }
-    } catch (e) {
-      console.warn('Could not decrypt group metadata:', e.message || e);
-    }
-
-    console.log(`✅ Connected to Firewalla box: ${getBoxDisplayName()} (${groups[0].name})`);
-    return true;
-  } catch (err) {
-    console.error('Failed to initialize Firewalla client:', err.message || err);
-    return false;
+  try {
+    return await initPromise;
+  } finally {
+    initPromise = null;
   }
 }
 
 /**
- * Refreshes cache from local Firewalla box with single-flight locking.
- * Prevents multiple simultaneous requests from spamming the embedded CPU.
+ * Refreshes cache from local Firewalla box with single-flight locking and 10s socket timeout.
+ * Prevents multiple simultaneous requests from spamming or deadlocking the embedded CPU.
  */
 export async function refreshCache() {
   const now = Date.now();
@@ -117,13 +132,31 @@ export async function refreshCache() {
   }
 
   refreshPromise = (async () => {
+    let timeoutTimer = null;
     try {
-      const [hosts, alarms, netStats, initRes] = await Promise.allSettled([
-        hostService.getAll(),
-        alarmService.getAll(),
-        networkService.getNetworkMonitorData(),
-        initService.init(),
+      const timeoutPromise = new Promise((_, reject) => {
+        timeoutTimer = setTimeout(() => {
+          reject(new Error('Firewalla socket request timed out after 10000ms'));
+        }, 10000);
+      });
+
+      const [hosts, alarms, netStats, initRes] = await Promise.race([
+        Promise.allSettled([
+          hostService.getAll(),
+          alarmService.getAll(),
+          networkService.getNetworkMonitorData(),
+          initService.init(),
+        ]),
+        timeoutPromise,
       ]);
+
+      const anyFulfilled = [hosts, alarms, netStats, initRes].some((r) => r.status === 'fulfilled');
+
+      if (!anyFulfilled) {
+        console.warn('All Firewalla service queries failed. Invalidating active session.');
+        fwGroup = null;
+        return;
+      }
 
       if (hosts.status === 'fulfilled' && hosts.value) {
         cache.hosts = hosts.value;
@@ -140,7 +173,10 @@ export async function refreshCache() {
       cache.lastUpdated = Date.now();
     } catch (err) {
       console.error('Error refreshing Firewalla cache:', err.message || err);
+      // On timeout or connection failure, invalidate fwGroup so fresh login is attempted next cycle
+      fwGroup = null;
     } finally {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       refreshPromise = null;
     }
   })();

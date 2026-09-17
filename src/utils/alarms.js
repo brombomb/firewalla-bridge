@@ -47,8 +47,12 @@ export function isAlarmIgnored(alarm, exceptionRules = [], appConfs = {}) {
     if (ifType === ruleType) {
       return true;
     } else if (ifType === 'dns') {
-      if (ifTarget && (destName.includes(ifTarget) || destDomain.includes(ifTarget) || ifTarget.includes(destDomain))) {
-        return true;
+      if (ifTarget) {
+        const matchesName = Boolean(destName && (destName.includes(ifTarget) || ifTarget.includes(destName)));
+        const matchesDomain = Boolean(destDomain && (destDomain.includes(ifTarget) || ifTarget.includes(destDomain)));
+        if (matchesName || matchesDomain) {
+          return true;
+        }
       }
     } else if (ifType === 'ip') {
       if (ifTarget && (destIp === ifTarget || destName === ifTarget)) {

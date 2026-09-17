@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { refreshCache } from '../client/firewalla.js';
 import { getInitData } from '../client/cache.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
 // GET /v2/rules (matches MSP /v2/rules)
-router.get('/v2/rules', async (req, res) => {
+router.get('/v2/rules', asyncHandler(async (req, res) => {
   await refreshCache();
   const initData = getInitData();
   const rawRules = initData.policyRules || [];
@@ -31,7 +32,8 @@ router.get('/v2/rules', async (req, res) => {
     const status = r.paused ? 'paused' : 'active';
     const type = r.type || r['if.type'] || 'traffic';
     const category = r.category || r.reason || 'custom';
-    const ts = Math.floor(parseFloat(r.timestamp || r.activatedTime || Date.now() / 1000));
+    let ts = parseFloat(r.timestamp || r.activatedTime || (Date.now() / 1000));
+    if (ts > 1e11) ts = Math.floor(ts / 1000);
 
     return {
       id: String(id),
@@ -42,7 +44,7 @@ router.get('/v2/rules', async (req, res) => {
       target,
       category,
       direction: r.direction || 'bidirection',
-      ts,
+      ts: Math.floor(ts),
     };
   });
 
@@ -53,10 +55,10 @@ router.get('/v2/rules', async (req, res) => {
     count: results.length,
     results: results.slice(0, limit),
   });
-});
+}));
 
 // GET /v2/trends/rules (matches MSP /v2/trends/rules)
-router.get('/v2/trends/rules', async (req, res) => {
+router.get('/v2/trends/rules', asyncHandler(async (req, res) => {
   await refreshCache();
   const initData = getInitData();
   const rawRules = initData.policyRules || [];
@@ -66,8 +68,10 @@ router.get('/v2/trends/rules', async (req, res) => {
 
   // Group real rule activations by timestamp into 24 one-hour buckets
   for (const r of rawRules) {
-    const ts = parseFloat(r.lastActivatedTime || r.activatedTime || r.timestamp || 0);
+    let ts = parseFloat(r.lastActivatedTime || r.activatedTime || r.timestamp || 0);
     if (!ts) continue;
+    if (ts > 1e11) ts = Math.floor(ts / 1000);
+    if (ts > nowSec) ts = nowSec;
     const hoursAgo = Math.floor((nowSec - ts) / 3600);
     if (hoursAgo >= 0 && hoursAgo < 24) {
       hourlyCounts[23 - hoursAgo]++;
@@ -80,6 +84,6 @@ router.get('/v2/trends/rules', async (req, res) => {
   }));
 
   res.json(results);
-});
+}));
 
 export default router;

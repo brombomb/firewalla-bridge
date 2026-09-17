@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { refreshCache } from '../client/firewalla.js';
 import { getAlarmList, getInitData } from '../client/cache.js';
 import { getActiveAlarms } from '../utils/alarms.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
 // GET /v2/alarms (matches MSP /v2/alarms)
-router.get('/v2/alarms', async (req, res) => {
+router.get('/v2/alarms', asyncHandler(async (req, res) => {
   await refreshCache();
   const rawAlarms = getAlarmList();
   const initData = getInitData();
@@ -16,21 +17,25 @@ router.get('/v2/alarms', async (req, res) => {
   const securityOnly = req.query.securityOnly === 'true' || req.query.filter === 'security';
   const alarms = getActiveAlarms(rawAlarms, rules, appConfs, securityOnly);
 
-  const results = alarms.map((a, idx) => ({
-    aid: a.aid || a.id || String(idx + 1),
-    type: a.type || 'ALARM',
-    message: a.message || a.desc || a.title || 'Security alert',
-    ts: Math.floor(parseFloat(a.timestamp || a.alarmTimestamp || (Date.now() / 1000))),
-  }));
+  const results = alarms.map((a, idx) => {
+    let ts = parseFloat(a.timestamp || a.alarmTimestamp || (Date.now() / 1000));
+    if (ts > 1e11) ts = Math.floor(ts / 1000);
+    return {
+      aid: a.aid || a.id || String(idx + 1),
+      type: a.type || 'ALARM',
+      message: a.message || a.desc || a.title || 'Security alert',
+      ts: Math.floor(ts),
+    };
+  });
 
   res.json({
     count: results.length,
     results,
   });
-});
+}));
 
 // GET /v2/trends/alarms (matches MSP /v2/trends/alarms)
-router.get('/v2/trends/alarms', async (req, res) => {
+router.get('/v2/trends/alarms', asyncHandler(async (req, res) => {
   await refreshCache();
   const rawAlarms = getAlarmList();
   const initData = getInitData();
@@ -43,7 +48,9 @@ router.get('/v2/trends/alarms', async (req, res) => {
 
   const dailyCounts = [0, 0, 0, 0, 0, 0, 0];
   alarms.forEach((a) => {
-    const ts = parseFloat(a.timestamp || a.alarmTimestamp || nowSec);
+    let ts = parseFloat(a.timestamp || a.alarmTimestamp || nowSec);
+    if (ts > 1e11) ts = Math.floor(ts / 1000);
+    if (ts > nowSec) ts = nowSec;
     const daysAgo = Math.floor((nowSec - ts) / oneDay);
     if (daysAgo >= 0 && daysAgo < 7) {
       dailyCounts[6 - daysAgo] += 1;
@@ -56,6 +63,7 @@ router.get('/v2/trends/alarms', async (req, res) => {
   }));
 
   res.json(results);
-});
+}));
 
 export default router;
+

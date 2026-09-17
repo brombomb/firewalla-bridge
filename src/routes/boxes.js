@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { refreshCache, getFwGroup, getBoxDisplayName } from '../client/firewalla.js';
 import { getHostList, getAlarmList, getInitData } from '../client/cache.js';
 import { getActiveAlarms } from '../utils/alarms.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
 // GET /v2/boxes (matches MSP /v2/boxes, enriched with live telemetry)
-router.get('/v2/boxes', async (req, res) => {
+router.get('/v2/boxes', asyncHandler(async (req, res) => {
   await refreshCache();
   const fwGroup = getFwGroup();
   const hosts = getHostList();
@@ -33,6 +34,6 @@ router.get('/v2/boxes', async (req, res) => {
       alarmCount: activeAlarms.length,
     },
   ]);
-});
+}));
 
 export default router;

@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { refreshCache } from '../client/firewalla.js';
 import { getInitData } from '../client/cache.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
 // GET /v2/speedtest
-router.get('/v2/speedtest', async (req, res) => {
+router.get('/v2/speedtest', asyncHandler(async (req, res) => {
   await refreshCache();
   const initData = getInitData();
   const history = initData.internetSpeedtestResults || [];
@@ -20,10 +21,13 @@ router.get('/v2/speedtest', async (req, res) => {
     });
   }
 
+  let latestTs = parseFloat(latest.timestamp || 0);
+  if (latestTs > 1e11) latestTs = Math.floor(latestTs / 1000);
+
   const result = {
     available: true,
     latest: {
-      timestamp: Math.floor(parseFloat(latest.timestamp || 0)),
+      timestamp: Math.floor(latestTs),
       downloadMbps: Math.round(((latest.result && latest.result.download) || 0) * 10) / 10,
       uploadMbps: Math.round(((latest.result && latest.result.upload) || 0) * 10) / 10,
       latencyMs: Math.round(((latest.result && latest.result.latency) || 0) * 10) / 10,
@@ -37,15 +41,19 @@ router.get('/v2/speedtest', async (req, res) => {
 
   if (req.query.history === 'true') {
     const limit = Math.min(parseInt(req.query.limit, 10) || 10, 50);
-    result.history = history.slice(0, limit).map((h) => ({
-      timestamp: Math.floor(parseFloat(h.timestamp || 0)),
-      downloadMbps: Math.round(((h.result && h.result.download) || 0) * 10) / 10,
-      uploadMbps: Math.round(((h.result && h.result.upload) || 0) * 10) / 10,
-      latencyMs: Math.round(((h.result && h.result.latency) || 0) * 10) / 10,
-    }));
+    result.history = history.slice(0, limit).map((h) => {
+      let hTs = parseFloat(h.timestamp || 0);
+      if (hTs > 1e11) hTs = Math.floor(hTs / 1000);
+      return {
+        timestamp: Math.floor(hTs),
+        downloadMbps: Math.round(((h.result && h.result.download) || 0) * 10) / 10,
+        uploadMbps: Math.round(((h.result && h.result.upload) || 0) * 10) / 10,
+        latencyMs: Math.round(((h.result && h.result.latency) || 0) * 10) / 10,
+      };
+    });
   }
 
   res.json(result);
-});
+}));
 
 export default router;

@@ -1,22 +1,27 @@
+import crypto from 'crypto';
+
 /**
- * Optional API Token authentication middleware.
- * If API_TOKEN is configured in environment, requests to /v2/* require
- * a valid authorization header:
- * - Authorization: Token <your_token> (matches official MSP format)
- * - Authorization: Bearer <your_token>
- * - or query parameter: ?token=<your_token>
+ * Validates a token in constant time using SHA-256 hashes to prevent timing side-channel attacks.
+ * @param {string} token
+ * @param {string} expectedToken
+ * @returns {boolean}
  */
-export function authMiddleware(req, res, next) {
+export function isTokenValid(token, expectedToken) {
+  if (!token || !expectedToken) return false;
+  const hash1 = crypto.createHash('sha256').update(String(token)).digest();
+  const hash2 = crypto.createHash('sha256').update(String(expectedToken)).digest();
+  return crypto.timingSafeEqual(hash1, hash2);
+}
+
+/**
+ * Checks whether the request has valid credentials if API_TOKEN is configured.
+ * @param {import('express').Request} req
+ * @returns {boolean}
+ */
+export function isAuthenticated(req) {
   const expectedToken = (process.env.API_TOKEN || '').trim();
-
-  // If no token is set in environment, allow all requests (open LAN mode)
   if (!expectedToken) {
-    return next();
-  }
-
-  // Allow root dashboard and health check without token
-  if (req.path === '/' || req.path === '/health') {
-    return next();
+    return true;
   }
 
   const authHeader = req.headers.authorization || '';
@@ -26,11 +31,32 @@ export function authMiddleware(req, res, next) {
     token = authHeader.slice(6).trim();
   } else if (authHeader.startsWith('Bearer ')) {
     token = authHeader.slice(7).trim();
-  } else if (typeof req.query.token === 'string') {
-    token = req.query.token.trim();
   }
 
-  if (token && token === expectedToken) {
+  return isTokenValid(token, expectedToken);
+}
+
+/**
+ * Optional API Token authentication middleware.
+ * If API_TOKEN is configured in environment, requests to protected endpoints require
+ * a valid authorization header:
+ * - Authorization: Token <your_token> (matches official MSP format)
+ * - Authorization: Bearer <your_token>
+ */
+export function authMiddleware(req, res, next) {
+  const expectedToken = (process.env.API_TOKEN || '').trim();
+
+  // If no token is set in environment, allow all requests (open LAN mode)
+  if (!expectedToken) {
+    return next();
+  }
+
+  // Allow root path and health check through middleware (handlers handle redaction)
+  if (req.path === '/' || req.path === '/health') {
+    return next();
+  }
+
+  if (isAuthenticated(req)) {
     return next();
   }
 

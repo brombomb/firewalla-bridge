@@ -10,12 +10,11 @@ services:
       - FIREWALLA_IP=${FIREWALLA_IP:-192.168.1.1}
       - KEY_DIR=/app/keys
       - BOX_NAME=${BOX_NAME:-Firewalla Purple}
+      # Optional: Configurable CORS origin (defaults to '*' for LAN dashboards)
+      # - CORS_ORIGIN=*
       # Optional: Secure with API token (Header "Authorization: Token <token>")
       # - API_TOKEN=your_token_here
-      # Optional: Merge bonded/multi-NIC servers (Name:IP:MAC1,MAC2)
+      # Optional: Merge bonded/multi-NIC servers (Name:IP:MAC1,MAC2 or Name|IP|MAC1,MAC2)
       # - MERGE_DEVICES=Terra:192.168.1.15:a6:86:5a:70:71:53,e8:ff:1e:d8:f5:81
     volumes:
       - ./keys:/app/keys
-      - ./src:/app/src
-      - ./public:/app/public
-      - ./package.json:/app/package.json

@@ -110,8 +110,9 @@ You can configure options in `docker-compose.yml` or a `.env` file:
 | `FIREWALLA_IP` | `192.168.1.1` | LAN IP of your Firewalla box |
 | `KEY_DIR` | `/app/keys` | Directory inside container storing `etp.*.pem` |
 | `BOX_NAME` | *(auto-detected)* | Custom display name override for your box |
-| `API_TOKEN` | *(disabled)* | If set, requires `Authorization: Token <token>` |
-| `MERGE_DEVICES` | *(empty)* | Rules to aggregate multi-NIC / bonded servers |
+| `CORS_ORIGIN` | `*` | Allowed CORS origin (set to specific domain or LAN subnet to harden) |
+| `API_TOKEN` | *(disabled)* | If set, requires `Authorization: Token <token>` or `Bearer <token>` |
+| `MERGE_DEVICES` | *(empty)* | Rules to aggregate multi-NIC / bonded servers (`Name\|IP\|MAC1,MAC2`) |
 
 ### 🔒 Securing with an API Token (Optional)
 
@@ -121,6 +122,7 @@ To prevent unauthorized devices on your LAN from accessing network telemetry:
    ```bash
    curl -H "Authorization: Token your_secret_token" http://localhost:7153/v2/devices
    ```
+   *(Timing-attack resistant verification with constant-time SHA-256 comparison)*
 
 ### 🔗 Merging Bonded Interfaces (Optional)
 
@@ -172,12 +174,23 @@ Home Assistant can monitor your Firewalla box natively using its built-in `rest`
 
 ---
 
-## 🔒 Security
+## 🛠️ Development & Live Reload
 
-* **Never commit your `./keys/` directory.** It contains private RSA keys generated during the pairing step that grant read access to your Firewalla box.
-* Private keys are generated with `0600` permissions.
-* Web dashboard HTML outputs are sanitized against host-header reflection.
-* Optional `API_TOKEN` protects against unauthenticated local network queries.
+To develop locally with live code reload without rebuilding the Docker image on every change, use the development compose override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+```
+
+---
+
+## 🔒 Security & Hardening
+
+* **Hardened Container Runtime:** Runs as non-root user (`node`, UID 1000) with direct PID 1 signal forwarding (`SIGTERM`/`SIGINT` graceful shutdown) and container healthchecks.
+* **Key Isolation:** Private keys are generated with `0600` permissions. The repository includes `.dockerignore` to prevent key files or `.env` secrets from ever baking into Docker image layers.
+* **Timing-Attack Immune:** API tokens are compared in constant time using SHA-256 digests (`crypto.timingSafeEqual`). Tokens are accepted exclusively via the `Authorization` header to prevent URL leakage in access logs.
+* **Smart Single-Flight Locking:** Employs single-flight caching with 10s socket timeouts to protect both the router's embedded CPU and the bridge runtime against deadlocks and connection stalls.
+* **Unauthenticated Diagnostic Shield:** When `API_TOKEN` is configured, `/health` and root endpoints return stripped status payloads to prevent unauthenticated network reconnaissance.
 
 ---
 

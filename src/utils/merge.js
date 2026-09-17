@@ -2,7 +2,8 @@
  * Parse optional MERGE_DEVICES configuration from environment.
  * Supports:
  * 1. JSON string: [{"name":"Server","ip":"192.168.1.15","primaryId":"A6:86:5A:70:71:53","macs":["a6:86:..."]}]
- * 2. Semicolon-delimited shorthand: "ServerName:192.168.1.15:mac1,mac2;NAS:192.168.1.20:mac3,mac4" (or pipe: "Name|IP|mac1,mac2")
+ * 2. Pipe-delimited shorthand: "ServerName|192.168.1.15|mac1,mac2;NAS|192.168.1.20|mac3,mac4" (recommended for IPv6)
+ * 3. Colon-delimited shorthand: "ServerName:192.168.1.15:mac1,mac2" (for IPv4)
  *
  * @param {string|undefined} raw
  * @returns {Array<{name: string, ip: string, primaryId: string, macs: string[]}>}
@@ -11,7 +12,7 @@ export function parseMergeDevices(raw) {
   if (!raw || !raw.trim()) return [];
   const trimmed = raw.trim();
 
-  // Try JSON format
+  // 1. Try JSON format
   if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
     try {
       const parsed = JSON.parse(trimmed);
@@ -22,7 +23,7 @@ export function parseMergeDevices(raw) {
           name: item.name || 'Merged Device',
           ip: item.ip || '',
           primaryId: item.primaryId || (macs[0] ? macs[0].toUpperCase() : item.ip || 'MERGED'),
-          macs: macs,
+          macs,
         };
       });
     } catch (e) {
@@ -30,7 +31,7 @@ export function parseMergeDevices(raw) {
     }
   }
 
-  // Fallback: Delimited shorthand string
+  // 2. Delimited shorthand string
   return trimmed
     .split(';')
     .map((entry) => entry.trim())
@@ -43,10 +44,18 @@ export function parseMergeDevices(raw) {
       if (entry.includes('|')) {
         [name, ip, macStr] = entry.split('|');
       } else {
-        const parts = entry.split(':');
-        name = parts[0];
-        ip = parts[1];
-        macStr = parts.slice(2).join(':');
+        // Handle optional bracketed IPv6 syntax: Name:[2001:db8::1]:mac1,mac2
+        const bracketMatch = entry.match(/^([^:]+):\[([a-fA-F0-9:]+)\]:(.+)$/);
+        if (bracketMatch) {
+          name = bracketMatch[1];
+          ip = bracketMatch[2];
+          macStr = bracketMatch[3];
+        } else {
+          const parts = entry.split(':');
+          name = parts[0];
+          ip = parts[1];
+          macStr = parts.slice(2).join(':');
+        }
       }
 
       name = (name || '').trim();
@@ -71,6 +80,17 @@ export function parseMergeDevices(raw) {
 
 export const MERGED_DEVICES = parseMergeDevices(process.env.MERGE_DEVICES);
 
+// Fast O(1) prototype-safe lookup Map
+const RULE_MAP = new Map();
+for (const m of MERGED_DEVICES) {
+  for (const mac of m.macs) {
+    RULE_MAP.set(mac.toLowerCase(), m);
+  }
+  if (m.ip) {
+    RULE_MAP.set(m.ip.toLowerCase(), m);
+  }
+}
+
 if (MERGED_DEVICES.length > 0) {
   console.log(
     `🔗 Configured ${MERGED_DEVICES.length} bonded/merged device rule(s):`,
@@ -84,12 +104,6 @@ if (MERGED_DEVICES.length > 0) {
  * @returns {{name: string, ip: string, primaryId: string, macs: string[]}|null}
  */
 export function getMergeRule(identifier) {
-  if (!identifier || MERGED_DEVICES.length === 0) return null;
-  const lower = identifier.toLowerCase();
-  for (const m of MERGED_DEVICES) {
-    if (m.macs.includes(lower) || (m.ip && m.ip.toLowerCase() === lower)) {
-      return m;
-    }
-  }
-  return null;
+  if (!identifier || RULE_MAP.size === 0) return null;
+  return RULE_MAP.get(identifier.toLowerCase()) || null;
 }

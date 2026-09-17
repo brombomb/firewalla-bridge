@@ -4,11 +4,18 @@ import { refreshCache, getFwGroup } from '../client/firewalla.js';
 import { getHostList, getAlarmList, getInitData } from '../client/cache.js';
 import { getActiveAlarms } from '../utils/alarms.js';
 import { getMergeRule } from '../utils/merge.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
+// In-memory cache for live 1-hour flows to prevent router CPU exhaustion (30s TTL)
+let flow1hCache = {
+  data: null,
+  timestamp: 0,
+};
+
 // GET /v2/trends/flows (matches MSP /v2/trends/flows)
-router.get('/v2/trends/flows', async (req, res) => {
+router.get('/v2/trends/flows', asyncHandler(async (req, res) => {
   await refreshCache();
   const rawAlarms = getAlarmList();
   const initData = getInitData();
@@ -21,8 +28,10 @@ router.get('/v2/trends/flows', async (req, res) => {
 
   // Group real active alarms / threats by actual timestamp into 24 one-hour buckets
   for (const a of alarms) {
-    const ts = parseFloat(a.timestamp || a.alarmTimestamp || 0);
+    let ts = parseFloat(a.timestamp || a.alarmTimestamp || 0);
     if (!ts) continue;
+    if (ts > 1e11) ts = Math.floor(ts / 1000);
+    if (ts > nowSec) ts = nowSec;
     const hoursAgo = Math.floor((nowSec - ts) / 3600);
     if (hoursAgo >= 0 && hoursAgo < 24) {
       hourlyCounts[23 - hoursAgo]++;
@@ -35,10 +44,10 @@ router.get('/v2/trends/flows', async (req, res) => {
   }));
 
   res.json(results);
-});
+}));
 
 // GET /v2/flows (matches MSP /v2/flows, supporting ?groupBy=device)
-router.get('/v2/flows', async (req, res) => {
+router.get('/v2/flows', asyncHandler(async (req, res) => {
   await refreshCache();
   const hosts = getHostList();
   const fwGroup = getFwGroup();
@@ -64,20 +73,30 @@ router.get('/v2/flows', async (req, res) => {
 
   if (is1h && fwGroup) {
     try {
-      const now = Math.floor(Date.now() / 1000);
-      const flowMsg = new FWGetMessage('flows', { begin: now - 3600, end: now, limit: 300 });
-      const flowRes = await FWGroupApi.sendMessageToBox(fwGroup, flowMsg);
-      const flows = flowRes.flows || [];
+      let flows;
+      const nowMs = Date.now();
+      if (flow1hCache.data && nowMs - flow1hCache.timestamp < 30000) {
+        flows = flow1hCache.data;
+      } else {
+        const now = Math.floor(nowMs / 1000);
+        const flowMsg = new FWGetMessage('flows', { begin: now - 3600, end: now, limit: 300 });
+        const flowRes = await FWGroupApi.sendMessageToBox(fwGroup, flowMsg);
+        flows = flowRes.flows || [];
+        flow1hCache = {
+          data: flows,
+          timestamp: nowMs,
+        };
+      }
 
-      // Name lookup map by MAC and IP
-      const nameMap = {};
+      // Name lookup map by MAC and IP (prototype-safe Map)
+      const nameMap = new Map();
       hosts.forEach((h) => {
         const name = h.name || h.bonjourName || h.bname || h.modelName || h.ip || 'Device';
-        if (h.mac) nameMap[h.mac.toLowerCase()] = name;
-        if (h.ip) nameMap[h.ip] = name;
+        if (h.mac) nameMap.set(h.mac.toLowerCase(), name);
+        if (h.ip) nameMap.set(h.ip, name);
       });
 
-      const byDev = {};
+      const byDev = new Map();
       flows.forEach((f) => {
         const devKey = (f.device || f.deviceIP || '').toLowerCase();
         if (!devKey) return;
@@ -85,11 +104,13 @@ router.get('/v2/flows', async (req, res) => {
         const mergeRule = getMergeRule(devKey) || (f.deviceIP ? getMergeRule(f.deviceIP) : null);
         const groupKey = mergeRule ? mergeRule.primaryId.toLowerCase() : devKey;
         const devId = mergeRule ? mergeRule.primaryId : (f.device || f.deviceIP);
-        const devName = mergeRule ? mergeRule.name : (nameMap[devKey] || f.deviceIP || devKey);
+        const devName = mergeRule ? mergeRule.name : (nameMap.get(devKey) || f.deviceIP || devKey);
         const devIp = mergeRule ? mergeRule.ip : (f.deviceIP || '');
+        const fDown = Number(f.download || 0);
+        const fUp = Number(f.upload || 0);
 
-        if (!byDev[groupKey]) {
-          byDev[groupKey] = {
+        if (!byDev.has(groupKey)) {
+          byDev.set(groupKey, {
             device: {
               id: devId,
               name: devName,
@@ -98,14 +119,15 @@ router.get('/v2/flows', async (req, res) => {
             download: 0,
             upload: 0,
             total: 0,
-          };
+          });
         }
-        byDev[groupKey].download += f.download || 0;
-        byDev[groupKey].upload += f.upload || 0;
-        byDev[groupKey].total += (f.download || 0) + (f.upload || 0);
+        const entry = byDev.get(groupKey);
+        entry.download += fDown;
+        entry.upload += fUp;
+        entry.total += fDown + fUp;
       });
 
-      const sorted1h = Object.values(byDev)
+      const sorted1h = Array.from(byDev.values())
         .sort((a, b) => b.total - a.total)
         .slice(0, limit);
 
@@ -127,8 +149,8 @@ router.get('/v2/flows', async (req, res) => {
     const name = mergeRule ? mergeRule.name : (h.name || h.bonjourName || h.bname || h.modelName || h.ip || 'Device');
     const ip = mergeRule ? mergeRule.ip : (h.ip || '');
 
-    const down = (h.flowsummary && h.flowsummary.inbytes) || h.download || h.totalDownload || 0;
-    const up = (h.flowsummary && h.flowsummary.outbytes) || h.upload || h.totalUpload || 0;
+    const down = Number((h.flowsummary && h.flowsummary.inbytes) || h.download || h.totalDownload || 0);
+    const up = Number((h.flowsummary && h.flowsummary.outbytes) || h.upload || h.totalUpload || 0);
 
     const groupKey = (id || '').toLowerCase();
     if (!devMap.has(groupKey)) {
@@ -154,6 +176,6 @@ router.get('/v2/flows', async (req, res) => {
   const results = mapped.slice(0, limit);
 
   res.json({ results });
-});
+}));
 
 export default router;

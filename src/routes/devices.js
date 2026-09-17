@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { refreshCache } from '../client/firewalla.js';
 import { getHostList } from '../client/cache.js';
 import { getMergeRule } from '../utils/merge.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
 // GET /v2/devices (matches MSP /v2/devices)
-router.get('/v2/devices', async (req, res) => {
+router.get('/v2/devices', asyncHandler(async (req, res) => {
   await refreshCache();
   const hosts = getHostList();
 
@@ -20,8 +21,8 @@ router.get('/v2/devices', async (req, res) => {
     const ip = mergeRule ? mergeRule.ip : (h.ip || '');
     const isOnline = !h.stale && h.online !== false;
 
-    const down = (h.flowsummary && h.flowsummary.inbytes) || h.download || h.totalDownload || 0;
-    const up = (h.flowsummary && h.flowsummary.outbytes) || h.upload || h.totalUpload || 0;
+    const down = Number((h.flowsummary && h.flowsummary.inbytes) || h.download || h.totalDownload || 0);
+    const up = Number((h.flowsummary && h.flowsummary.outbytes) || h.upload || h.totalUpload || 0);
 
     const groupKey = (id || '').toLowerCase();
     if (!devMap.has(groupKey)) {
@@ -43,6 +44,6 @@ router.get('/v2/devices', async (req, res) => {
   }
 
   res.json(Array.from(devMap.values()));
-});
+}));
 
 export default router;

@@ -60,6 +60,11 @@ async function run() {
 
     // Security: Restrict private key permissions to owner read/write (0600)
     fs.writeFileSync(privKeyPath, SecureUtil.privateKey, { encoding: 'utf8', mode: 0o600 });
+    try {
+      fs.chmodSync(privKeyPath, 0o600);
+    } catch (_) {
+      // Best-effort on filesystems lacking POSIX permission support
+    }
     fs.writeFileSync(pubKeyPath, SecureUtil.publicKey, { encoding: 'utf8', mode: 0o644 });
 
     console.log('\n==============================================');

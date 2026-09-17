@@ -1,0 +1,9 @@
+# Development override: Bind mounts local source and public directory for hot reload
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  firewalla-bridge:
+    volumes:
+      - ./keys:/app/keys
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./package.json:/app/package.json

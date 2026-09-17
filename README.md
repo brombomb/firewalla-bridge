@@ -141,6 +141,20 @@ environment:
 
 ---
 
+## 📱 Dashboard & Smart Home Integration
+
+### Tronbyt / Tidbyt Apps
+All Tronbyt Firewalla apps (**Firewalla Network**, **Firewalla Top Talkers**, and **Firewalla Security**) support Local Bridge mode:
+1. In Tronbyt app settings, set **Connection** to `Local Bridge (Docker / LAN)`.
+2. In **Bridge Address**, enter `http://<YOUR_DOCKER_HOST_IP>:7153`.
+3. Leave **API Token** blank (or enter your token if `API_TOKEN` is enabled).
+
+### 🏠 Home Assistant
+Home Assistant can monitor your Firewalla box natively using its built-in `rest` sensor platform with zero HACS or cloud dependencies.
+* **[View the Home Assistant Integration Guide & Ready-to-Copy YAML](docs/home-assistant.md)** for sensors covering WAN telemetry, speed test results, active alarms, and top talkers.
+
+---
+
 ## 📡 Available API Endpoints
 
 | Endpoint | Description |

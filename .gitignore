@@ -1,9 +1,22 @@
-node_modules/
-npm-debug.log
-.DS_Store
-.env
-
-# Protect private cryptographic keys
+# Keys and pairing credentials (CRITICAL: Do not commit!)
 keys/*.pem
-keys/*.json
 !keys/.gitkeep
+*.pem
+*.key
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Backups and temporary files
+*.bak
+*.tmp
+.DS_Store
+Thumbs.db

@@ -1,48 +1,40 @@
-# Firewalla Local Bridge for Tronbyt
+# Firewalla Local Bridge
 
-A lightweight, self-hosted Docker bridge that connects directly to your Firewalla box's local API (on port 8833) and translates it into clean REST endpoints for Tronbyt apps.
+A lightweight, self-hosted Docker bridge that connects directly to your Firewalla box's local API (on port 8833) and translates it into clean REST endpoints compatible with **Tronbyt**, **Tidbyt**, **Home Assistant**, and custom homelab dashboards.
 
-**No paid MSP subscription required.** Works with **MSP Lite** and standalone Firewalla boxes.
-
----
-
-## 📦 Container & Package Architecture
-
-The bridge is designed to be self-contained and run on your home server (Docker / Unraid / Synology / Raspberry Pi):
-
-### 1. Base Container
-* **Image:** `node:20-alpine`
-* **Size:** < 100 MB
-* **Memory footprint:** ~35 MB RAM
-* **Default Port:** `7153` (mapped `7153:7153` in `docker-compose.yml`)
-
-### 2. JavaScript / NPM Dependencies
-* **[`node-firewalla`](https://www.npmjs.com/package/node-firewalla) (`^1.0.5`):** The core client library that handles the local cryptographic ETP (Extended Token Pairing) handshake with your Firewalla box on port 8833, signs requests with your generated RSA `.pem` keys, and queries devices, alarms, and network flows.
-* **[`express`](https://www.npmjs.com/package/express) (`^4.19.2`):** Minimalist web framework that listens on port `7153` and serves the standardized `/v2/boxes`, `/v2/alarms`, `/v2/trends/flows`, and `/v2/flows` endpoints expected by Tronbyt.
-* **[`inquirer`](https://www.npmjs.com/package/inquirer) (`^9.2.14`):** Interactive CLI prompt used solely during the one-time pairing process (`npm run pair`) to guide you through pasting your QR code JSON and setting your box IP.
-* **[`validator`](https://www.npmjs.com/package/validator) (`^13.11.0`):** Validates IP addresses and email syntax during the pairing step.
+**No paid Firewalla MSP subscription required.** Works with standalone Firewalla boxes (Purple, Gold, Red, Blue) and boxes on MSP Lite.
 
 ---
 
-## ⚙️ Port Configuration
+## ✨ Features
 
-By default, the bridge listens on **port `7153`**.
+* **Zero Cloud Dependency:** Communicates directly with your Firewalla box over your local LAN (ETP on port 8833).
+* **MSP REST Compatibility:** Emulates standard Firewalla MSP endpoints (`/v2/boxes`, `/v2/alarms`, `/v2/flows`, `/v2/trends/flows`, etc.).
+* **One-Step QR Pairing:** Built-in interactive pairing wizard (`npm run pair`) handles cryptographic key generation and box authorization in seconds.
+* **Smart Alarm Filtering:** Automatically filters out muted notifications and exception/whitelisted rules to match real security events.
+* **Bonded NIC / Multi-MAC Merging:** Optionally aggregates multi-NIC servers (e.g. LACP or `balance-alb` bonds) into a single virtual device so stats aren't split across ports.
+* **Lightweight:** Built on Node 20 Alpine with a minimal memory footprint (~35 MB RAM).
 
-If you ever need to change the port, update `docker-compose.yml`:
-```yaml
-services:
-  firewalla-bridge:
-    ports:
-      - "YOUR_PORT:YOUR_PORT" # e.g. 7153:7153
-    environment:
-      - PORT=YOUR_PORT        # e.g. 7153
-```
+---
+
+## 📦 Architecture & Requirements
+
+* **Base Container:** `node:20-alpine` (< 100 MB image)
+* **Default Port:** `7153` (configurable via `PORT` environment variable)
+* **Local Access:** Your Docker host must be able to route to your Firewalla's LAN IP address on port `8833`.
 
 ---
 
 ## 🚀 Quick Setup Guide
 
-### Step 1: One-Time Pairing with Your Firewalla Box
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/brombomb/firewalla-bridge.git
+cd firewalla-bridge
+```
+
+### Step 2: One-Time Pairing with Your Firewalla Box
 
 The pairing step registers your bridge container as an authorized local client on your Firewalla box:
 
@@ -50,17 +42,17 @@ The pairing step registers your bridge container as an authorized local client o
 2. Select your box and go to: **Settings → Advanced → Allow Additional Pairing**.
 3. Toggle **Additional Pairing** to **ON**. A QR code will appear on your screen.
 4. Scan or screenshot the QR code and copy the raw JSON text (it looks like `{"gid":"...","seed":"...","license":"...","ek":"...","ipaddress":"..."}`).
-5. In your `firewalla-tronbyt-bridge` directory, run:
+5. In your `firewalla-bridge` directory, run:
    ```bash
    docker compose run --rm firewalla-bridge npm run pair
    ```
 6. Follow the prompts:
-   * **Email label:** Enter an email (e.g. `tronbyt@home.local` — used only for display in the app).
+   * **Email label:** Enter an identifier (e.g. `dashboard@home.local` — used only for display in the app).
    * **QR code JSON:** Paste the JSON string from step 4.
    * **Firewalla IP:** Enter your Firewalla box's local LAN IP (e.g. `192.168.1.1`).
-7. The script will generate `etp.private.pem` and `etp.public.pem` directly in your `./keys/` directory.
+7. The pairing script generates your cryptographic keys (`etp.private.pem` and `etp.public.pem`) directly in the `./keys/` directory.
 
-### Step 2: Start the Bridge Container
+### Step 3: Start the Bridge
 
 Run in the background:
 ```bash
@@ -71,38 +63,88 @@ Verify that the bridge is running and connected:
 ```bash
 curl http://localhost:7153/health
 ```
+
 Expected response:
 ```json
-{"status":"connected","firewallaIp":"192.168.1.1","boxName":"Firewalla Purple","cachedDevices":107,"cachedAlarms":50}
+{
+  "status": "connected",
+  "firewallaIp": "192.168.1.1",
+  "boxName": "Firewalla Purple",
+  "cachedDevices": 105,
+  "cachedAlarms": 34
+}
 ```
 
 ---
 
-## 📱 Configuring Your Tronbyt Apps
+## ⚙️ Configuration & Environment Variables
 
-All 3 Tronbyt apps (**Firewalla Network**, **Firewalla Top Talkers**, and **Firewalla Security**) now support both **Local Bridge** and **Cloud MSP** modes:
+You can configure options in `docker-compose.yml` or a `.env` file:
 
-1. In the Tronbyt app settings, set **Connection** to:
-   `Local Bridge (Docker / LAN)` *(Default)*
-2. In **Bridge Address**, enter your Docker server's IP and port `7153`:
-   ```
-   http://192.168.1.15:7153
-   ```
-   *(Replace `192.168.1.15` with the actual LAN IP of the machine running Docker)*
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `PORT` | `7153` | Port for the bridge HTTP server |
+| `FIREWALLA_IP` | `192.168.1.1` | LAN IP of your Firewalla box |
+| `KEY_DIR` | `/app/keys` | Directory inside container storing `etp.*.pem` |
+| `BOX_NAME` | *(auto-detected)* | Custom display name override for your box |
+| `MERGE_DEVICES` | *(empty)* | Rules to aggregate multi-NIC / bonded servers |
+
+### 🔗 Merging Bonded Interfaces (Optional)
+
+If you have a home server or NAS using link aggregation (e.g. Linux `bond0` in `balance-alb` or `802.3ad` mode), Firewalla sees traffic across multiple physical MAC addresses. You can merge them into a single device using `MERGE_DEVICES`.
+
+#### Shorthand format:
+```env
+MERGE_DEVICES="ServerName:192.168.1.15:mac1,mac2;NAS:192.168.1.20:mac3,mac4"
+```
+
+#### Example in `docker-compose.yml`:
+```yaml
+environment:
+  - PORT=7153
+  - FIREWALLA_IP=192.168.1.1
+  - MERGE_DEVICES=Terra:192.168.1.15:a6:86:5a:70:71:53,e8:ff:1e:d8:f5:81
+```
+
+#### JSON format (also supported):
+```env
+MERGE_DEVICES='[{"name":"Terra","ip":"192.168.1.15","primaryId":"A6:86:5A:70:71:53","macs":["a6:86:5a:70:71:53","e8:ff:1e:d8:f5:81"]}]'
+```
+
+---
+
+## 📱 Dashboard Integration
+
+### Tronbyt / Tidbyt Apps
+All Tronbyt Firewalla apps (**Firewalla Network**, **Firewalla Top Talkers**, and **Firewalla Security**) support Local Bridge mode:
+1. In Tronbyt app settings, set **Connection** to `Local Bridge (Docker / LAN)`.
+2. In **Bridge Address**, enter `http://<YOUR_DOCKER_HOST_IP>:7153`.
 3. Leave **API Token** blank.
 
 ---
 
-## 📡 Endpoints Provided to Tronbyt
+## 📡 Available API Endpoints
 
-The bridge maps the local Firewalla API to the following endpoints:
+| Endpoint | Description |
+| :--- | :--- |
+| `GET /health` | Bridge connection status, device count, and active alarm count |
+| `GET /v2/boxes` | Box model, name, mode, connected client count, and alarm summary |
+| `GET /v2/alarms` | Active security alerts (auto-filters muted/whitelisted rules) |
+| `GET /v2/alarms?filter=security` | Active security threat alarms only |
+| `GET /v2/trends/flows` | 24-hour blocked threat volume for sparklines |
+| `GET /v2/trends/alarms` | 7-day alarm frequency trend |
+| `GET /v2/flows?groupBy=device` | Top bandwidth consumers sorted descending (supports `?period=1h`) |
+| `GET /v2/devices` | All LAN devices with download/upload stats and online state |
 
-| Endpoint | Purpose | Consumed By |
-| :--- | :--- | :--- |
-| `GET /health` | Bridge health & device count | Monitoring / Setup |
-| `GET /v2/boxes` | Box name, model, connected client count, alarm count | **Firewalla Network** |
-| `GET /v2/trends/flows` | 24-hour blocked threat volume for the sparkline | **Firewalla Network** |
-| `GET /v2/flows?groupBy=device` | Top bandwidth consumers (sorted descending) | **Firewalla Top Talkers** |
-| `GET /v2/alarms` | Active security alerts and threat descriptions | **Firewalla Security** |
-| `GET /v2/trends/alarms` | 7-day alarm frequency trend | **Firewalla Security** |
-| `GET /v2/devices` | All LAN devices with download/upload stats | Diagnostic fallback |
+---
+
+## 🔒 Security
+
+* **Never commit your `./keys/` directory.** It contains private RSA keys generated during the pairing step that grant read access to your Firewalla box.
+* The `.gitignore` in this repo is preconfigured to ignore `keys/*.pem` and `.env`.
+
+---
+
+## 📄 License
+
+MIT License. See [LICENSE](LICENSE) for details.

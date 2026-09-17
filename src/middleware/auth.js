@@ -51,11 +51,12 @@ export function authMiddleware(req, res, next) {
     return next();
   }
 
-  // Allow root path, health check, documentation, and OpenAPI spec through middleware
+  // Allow root path, health check, documentation, favicon, and OpenAPI spec through middleware
   if (
     req.path === '/' ||
     req.path === '/health' ||
     req.path === '/docs' ||
+    req.path === '/favicon.ico' ||
     req.path === '/openapi.json' ||
     req.path === '/swagger.json'
   ) {

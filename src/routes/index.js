@@ -91,6 +91,14 @@ router.get('/health', asyncHandler(async (req, res) => {
 }));
 
 const OPENAPI_JSON_PATH = path.resolve(__dirname, '../../public/openapi.json');
+const FLAME_FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🔥</text></svg>`;
+
+// GET /favicon.ico: Serves flame emoji SVG favicon
+router.get('/favicon.ico', (req, res) => {
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.send(FLAME_FAVICON_SVG);
+});
 
 // GET /swagger.json: Alias for /openapi.json
 router.get('/swagger.json', (req, res) => {
@@ -105,6 +113,7 @@ router.get('/docs', (req, res) => {
     <title>Firewalla Bridge API Documentation</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔥</text></svg>">
     <style>body { margin: 0; background: #0d1117; }</style>
   </head>
   <body>

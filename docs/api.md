@@ -47,6 +47,9 @@ curl -H "Authorization: Bearer your_secret_token" http://localhost:7153/v2/boxes
 | [`/v2/flows`](#get-v2flows) | `GET` | Top bandwidth consumers sorted descending (supports 1h and 24h windows) |
 | [`/v2/trends/flows`](#get-v2trendsflows) | `GET` | Hourly alarm/flow activity over the last 24 hours |
 | [`/v2/speedtest`](#get-v2speedtest) | `GET` | Latest WAN speed test results (download, upload, latency, jitter, loss) |
+| [`/v2/bandwidth`](#get-v2bandwidth) | `GET` | Real-time network throughput rate, 60m totals, and monthly data usage |
+| [`/v2/bandwidth/history`](#get-v2bandwidthhistory) | `GET` | 60-minute historical throughput buckets (1-minute resolution) |
+| [`/v2/trends/bandwidth`](#get-v2trendsbandwidth) | `GET` | Alias for bandwidth history matching MSP `/v2/trends/*` naming |
 
 ## Endpoint Details
 
@@ -87,7 +90,11 @@ Emulates the Firewalla MSP box telemetry endpoint. Returns box specifications, n
     "uptime": 259200,
     "deviceCount": 42,
     "ruleCount": 15,
-    "alarmCount": 3
+    "alarmCount": 3,
+    "totalDownload": 1024407454184,
+    "totalUpload": 841082427124,
+    "downloadRateMbps": 1.74,
+    "uploadRateMbps": 16.28
   }
 ]
 ```
@@ -310,7 +317,81 @@ Returns the most recent WAN internet speed test performed by the Firewalla box, 
 }
 ```
 
+---
+
+### `GET /v2/bandwidth`
+
+Returns real-time network throughput rate, last 60-minute cumulative byte totals, monthly data usage, and aggregated host device counters.
+
+#### Query Parameters:
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `history` | boolean | `false` | When `true`, embeds full 60-minute array of historical 1-minute throughput buckets |
+
+#### Sample Response:
+```json
+{
+  "current": {
+    "timestamp": 1790104560,
+    "downloadMbps": 1.74,
+    "uploadMbps": 16.28,
+    "downloadBytesPerSecond": 216910,
+    "uploadBytesPerSecond": 2034403
+  },
+  "last60Minutes": {
+    "totalDownloadBytes": 1013141410,
+    "totalUploadBytes": 718857395,
+    "averageDownloadMbps": 2.25,
+    "averageUploadMbps": 1.60
+  },
+  "monthly": {
+    "totalDownloadBytes": 1024407454184,
+    "totalUploadBytes": 841082427124,
+    "monthlyBeginTs": 1788242400,
+    "monthlyEndTs": 1790834400
+  },
+  "devices": {
+    "totalDownloadBytes": 29825396529,
+    "totalUploadBytes": 33412942309
+  }
+}
+```
+
+---
+
+### `GET /v2/bandwidth/history`
+
+Returns 60 historical 1-minute throughput buckets directly from Firewalla's internal telemetry cache for graphing and time-series analytics.
+
+#### Alternate Path:
+* `GET /v2/trends/bandwidth` (alias matching MSP `/v2/trends/*` convention)
+
+#### Sample Response:
+```json
+[
+  {
+    "timestamp": 1790101020,
+    "downloadBytes": 16211843,
+    "uploadBytes": 16804402,
+    "downloadMbps": 2.16,
+    "uploadMbps": 2.24,
+    "downloadBytesPerSecond": 270197,
+    "uploadBytesPerSecond": 280073
+  },
+  {
+    "timestamp": 1790101080,
+    "downloadBytes": 6706211,
+    "uploadBytes": 13819233,
+    "downloadMbps": 0.89,
+    "uploadMbps": 1.84,
+    "downloadBytesPerSecond": 111770,
+    "uploadBytesPerSecond": 230321
+  }
+]
+```
+
 ## Related Documentation
 
 - [Home Assistant Integration Guide](home-assistant.md)
 - [Main README](../README.md)
+

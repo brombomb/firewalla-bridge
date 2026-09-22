@@ -47,6 +47,10 @@
     {
       "name": "Speed Test",
       "description": "Internet WAN speed test diagnostics and history"
+    },
+    {
+      "name": "Bandwidth & Throughput",
+      "description": "Live network throughput rates, 60-minute historical telemetry, and monthly data usage"
     }
   ],
   "paths": {
@@ -105,7 +109,11 @@
                       "uptime": { "type": "number", "example": 4989000 },
                       "deviceCount": { "type": "integer", "example": 100 },
                       "ruleCount": { "type": "integer", "example": 409 },
-                      "alarmCount": { "type": "integer", "example": 41 }
+                      "alarmCount": { "type": "integer", "example": 41 },
+                      "totalDownload": { "type": "number", "example": 1024407454184 },
+                      "totalUpload": { "type": "number", "example": 841082427124 },
+                      "downloadRateMbps": { "type": "number", "example": 1.74 },
+                      "uploadRateMbps": { "type": "number", "example": 16.28 }
                     }
                   }
                 }
@@ -439,6 +447,133 @@
                         "publicIp": { "type": "string", "example": "198.51.100.1" },
                         "server": { "type": "string", "example": "Speedtest Host (Denver, CO)" }
                       }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/bandwidth": {
+      "get": {
+        "tags": ["Bandwidth & Throughput"],
+        "summary": "Current Bandwidth & Data Usage",
+        "description": "Retrieves real-time network throughput rate, last 60-minute transfer totals, monthly data usage, and host bandwidth aggregates. Supports ?history=true to embed 60-minute time-series buckets.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "history",
+            "in": "query",
+            "description": "Include full 60-minute array of historical 1-minute throughput buckets",
+            "schema": { "type": "boolean", "default": false }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bandwidth telemetry summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "current": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": { "type": "integer", "example": 1790104560 },
+                        "downloadMbps": { "type": "number", "example": 1.74 },
+                        "uploadMbps": { "type": "number", "example": 16.28 },
+                        "downloadBytesPerSecond": { "type": "integer", "example": 216910 },
+                        "uploadBytesPerSecond": { "type": "integer", "example": 2034403 }
+                      }
+                    },
+                    "last60Minutes": {
+                      "type": "object",
+                      "properties": {
+                        "totalDownloadBytes": { "type": "integer", "example": 1013141410 },
+                        "totalUploadBytes": { "type": "integer", "example": 718857395 },
+                        "averageDownloadMbps": { "type": "number", "example": 2.25 },
+                        "averageUploadMbps": { "type": "number", "example": 1.6 }
+                      }
+                    },
+                    "monthly": {
+                      "type": "object",
+                      "properties": {
+                        "totalDownloadBytes": { "type": "number", "example": 1024407454184 },
+                        "totalUploadBytes": { "type": "number", "example": 841082427124 },
+                        "monthlyBeginTs": { "type": "integer", "example": 1788242400 },
+                        "monthlyEndTs": { "type": "integer", "example": 1790834400 }
+                      }
+                    },
+                    "devices": {
+                      "type": "object",
+                      "properties": {
+                        "totalDownloadBytes": { "type": "number", "example": 29825396529 },
+                        "totalUploadBytes": { "type": "number", "example": 33412942309 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/bandwidth/history": {
+      "get": {
+        "tags": ["Bandwidth & Throughput"],
+        "summary": "60-Minute Bandwidth History",
+        "description": "Returns a chronological array of 60 1-minute throughput buckets for graphing live network rates.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "60-minute bandwidth history array",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": { "type": "integer", "example": 1790104560 },
+                      "downloadBytes": { "type": "integer", "example": 13014581 },
+                      "uploadBytes": { "type": "integer", "example": 122064171 },
+                      "downloadMbps": { "type": "number", "example": 1.74 },
+                      "uploadMbps": { "type": "number", "example": 16.28 },
+                      "downloadBytesPerSecond": { "type": "integer", "example": 216910 },
+                      "uploadBytesPerSecond": { "type": "integer", "example": 2034403 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/trends/bandwidth": {
+      "get": {
+        "tags": ["Bandwidth & Throughput"],
+        "summary": "Bandwidth Trend Telemetry (MSP Alias)",
+        "description": "Alias for /v2/bandwidth/history matching standard MSP trend naming conventions.",
+        "security": [{ "TokenAuth": [] }, { "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "60-minute bandwidth trend data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "timestamp": { "type": "integer", "example": 1790104560 },
+                      "downloadBytes": { "type": "integer", "example": 13014581 },
+                      "uploadBytes": { "type": "integer", "example": 122064171 },
+                      "downloadMbps": { "type": "number", "example": 1.74 },
+                      "uploadMbps": { "type": "number", "example": 16.28 }
                     }
                   }
                 }

@@ -43,6 +43,34 @@ rest:
         value_template: "{{ value_json[0].ruleCount }}"
         unit_of_measurement: "rules"
         icon: mdi:shield-check
+      - name: "Firewalla Total Download"
+        unique_id: firewalla_total_download
+        value_template: "{{ (value_json[0].totalDownload / 1073741824) | round(2) }}"
+        unit_of_measurement: "GB"
+        device_class: data_size
+        state_class: total_increasing
+        icon: mdi:cloud-download
+      - name: "Firewalla Total Upload"
+        unique_id: firewalla_total_upload
+        value_template: "{{ (value_json[0].totalUpload / 1073741824) | round(2) }}"
+        unit_of_measurement: "GB"
+        device_class: data_size
+        state_class: total_increasing
+        icon: mdi:cloud-upload
+      - name: "Firewalla Live Download Rate"
+        unique_id: firewalla_live_download_rate
+        value_template: "{{ value_json[0].downloadRateMbps }}"
+        unit_of_measurement: "Mbit/s"
+        device_class: data_rate
+        state_class: measurement
+        icon: mdi:speedometer
+      - name: "Firewalla Live Upload Rate"
+        unique_id: firewalla_live_upload_rate
+        value_template: "{{ value_json[0].uploadRateMbps }}"
+        unit_of_measurement: "Mbit/s"
+        device_class: data_rate
+        state_class: measurement
+        icon: mdi:speedometer
 
   # 2. Internet Speed Test Results
   - resource: http://192.168.1.100:7153/v2/speedtest

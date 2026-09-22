@@ -13,6 +13,7 @@ import flowsRoutes from './routes/flows.js';
 import devicesRoutes from './routes/devices.js';
 import rulesRoutes from './routes/rules.js';
 import speedtestRoutes from './routes/speedtest.js';
+import bandwidthRoutes from './routes/bandwidth.js';
 
 const app = express();
 const PORT = process.env.PORT || 7153;
@@ -44,6 +45,7 @@ app.use('/', flowsRoutes);
 app.use('/', devicesRoutes);
 app.use('/', rulesRoutes);
 app.use('/', speedtestRoutes);
+app.use('/', bandwidthRoutes);
 
 // Global error handling
 app.use(errorHandler);

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { refreshCache, getFwGroup, getBoxDisplayName } from '../client/firewalla.js';
 import { getHostList, getAlarmList, getInitData } from '../client/cache.js';
 import { getActiveAlarms } from '../utils/alarms.js';
+import { calculateBandwidthSummary } from '../utils/bandwidth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
@@ -16,6 +17,7 @@ router.get('/v2/boxes', asyncHandler(async (req, res) => {
   const rules = initData.exceptionRules || [];
   const appConfs = initData.appConfs || {};
   const activeAlarms = getActiveAlarms(rawAlarms, rules, appConfs, false);
+  const bandwidth = calculateBandwidthSummary(initData, hosts);
 
   const model = fwGroup && fwGroup.model ? fwGroup.model : (initData.model || 'purple');
 
@@ -32,6 +34,10 @@ router.get('/v2/boxes', asyncHandler(async (req, res) => {
       deviceCount: hosts.length,
       ruleCount: initData.policyRuleNumber || (initData.policyRules ? initData.policyRules.length : 0),
       alarmCount: activeAlarms.length,
+      totalDownload: bandwidth.monthly.totalDownloadBytes || bandwidth.devices.totalDownloadBytes,
+      totalUpload: bandwidth.monthly.totalUploadBytes || bandwidth.devices.totalUploadBytes,
+      downloadRateMbps: bandwidth.current.downloadMbps,
+      uploadRateMbps: bandwidth.current.uploadMbps,
     },
   ]);
 }));

@@ -2,6 +2,8 @@
 
 The Firewalla Local Bridge translates local Firewalla ETP messages into clean, standard REST endpoints compatible with **Home Assistant**, **Tronbyt**, **Tidbyt**, and custom dashboards.
 
+The bridge operates strictly as a read-only monitoring service: it queries telemetry, rules, and alarm states from your local Firewalla box without altering any firewall configurations, routing rules, or box policies.
+
 ## Interactive Documentation
 
 When the bridge container is running, an interactive documentation interface with live "Try It Out" capability is available directly in your browser:

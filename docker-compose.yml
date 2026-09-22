@@ -1,6 +1,8 @@
 services:
   firewalla-bridge:
-    build: .
+    image: ghcr.io/brombomb/firewalla-bridge:latest
+    # Or build locally from source:
+    # build: .
     container_name: firewalla-bridge
     restart: unless-stopped
     ports:

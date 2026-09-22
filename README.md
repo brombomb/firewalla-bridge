@@ -6,7 +6,7 @@ No paid Firewalla MSP subscription required — works with standalone Firewalla 
 
 ## Features
 
-- **Local only:** Connects directly to your Firewalla box over your LAN (no cloud required).
+- **100% Local & Read-Only:** Connects directly to your Firewalla box over your LAN. Strictly read-only telemetry monitoring; never modifies firewall rules, routes, or box settings.
 - **MSP REST API compatibility:** Emulates standard Firewalla MSP endpoints (`/v2/boxes`, `/v2/alarms`, `/v2/flows`, `/v2/devices`, `/v2/rules`, `/v2/speedtest`).
 - **Smart alarm filtering:** Automatically filters out muted app notifications and whitelisted rules so you only see active, relevant alerts.
 - **Bonded NIC / multi-MAC merging:** Consolidates multi-NIC servers (e.g. LACP or `balance-alb` bonds) into a single virtual device.
@@ -17,6 +17,11 @@ No paid Firewalla MSP subscription required — works with standalone Firewalla 
 ### 1. Pair with your Firewalla box
 
 The bridge authenticates with your Firewalla locally using cryptographic keys generated during pairing:
+
+> [!NOTE]
+> **Network Requirements & Timing:**
+> - Ensure your host machine can reach your Firewalla box on **TCP port 8833** (check your inter-VLAN rules if your container is in an isolated subnet).
+> - Complete pairing within 2–3 minutes of generating the QR code before the pairing token expires.
 
 1. Open the **Firewalla App** on your phone.
 2. Go to **Settings → Advanced → Allow Additional Pairing** and toggle it **ON**.
@@ -34,12 +39,14 @@ Keys are generated in `./keys/`.
 
 ### 2. Start the bridge
 
-A ready-to-go `docker-compose.yml` is included in the repository:
+A ready-to-go `docker-compose.yml` is included in the repository (using the pre-built multi-arch image):
 
 ```yaml
 services:
   firewalla-bridge:
-    build: .
+    image: ghcr.io/brombomb/firewalla-bridge:latest
+    # Or build locally:
+    # build: .
     container_name: firewalla-bridge
     restart: unless-stopped
     ports:

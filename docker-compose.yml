@@ -15,6 +15,6 @@ services:
       # Optional: Secure with API token (Header "Authorization: Token <token>")
       # - API_TOKEN=your_token_here
       # Optional: Merge bonded/multi-NIC servers (Name:IP:MAC1,MAC2 or Name|IP|MAC1,MAC2)
-      # - MERGE_DEVICES=Terra:192.168.1.15:a6:86:5a:70:71:53,e8:ff:1e:d8:f5:81
+      # - MERGE_DEVICES=Server:192.168.1.100:aa:bb:cc:dd:ee:01,aa:bb:cc:dd:ee:02
     volumes:
       - ./keys:/app/keys

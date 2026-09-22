@@ -11,16 +11,16 @@ describe('Device Merge Utilities (src/utils/merge.js)', () => {
     });
 
     it('parses standard colon-delimited IPv4 shorthand', () => {
-      const input = 'Terra:192.168.1.15:a6:86:5a:70:71:53,e8:ff:1e:d8:f5:81';
+      const input = 'Server:192.168.1.100:aa:bb:cc:dd:ee:01,aa:bb:cc:dd:ee:02';
       const parsed = parseMergeDevices(input);
 
       assert.equal(parsed.length, 1);
-      assert.equal(parsed[0].name, 'Terra');
-      assert.equal(parsed[0].ip, '192.168.1.15');
-      assert.equal(parsed[0].primaryId, 'A6:86:5A:70:71:53');
+      assert.equal(parsed[0].name, 'Server');
+      assert.equal(parsed[0].ip, '192.168.1.100');
+      assert.equal(parsed[0].primaryId, 'AA:BB:CC:DD:EE:01');
       assert.deepEqual(parsed[0].macs, [
-        'a6:86:5a:70:71:53',
-        'e8:ff:1e:d8:f5:81',
+        'aa:bb:cc:dd:ee:01',
+        'aa:bb:cc:dd:ee:02',
       ]);
     });
 
@@ -50,11 +50,11 @@ describe('Device Merge Utilities (src/utils/merge.js)', () => {
 
     it('parses multiple semicolon-separated device configurations', () => {
       const input =
-        'Terra:192.168.1.15:aa:bb:cc;NAS:192.168.1.20:dd:ee:ff,11:22:33';
+        'Server:192.168.1.100:aa:bb:cc;NAS:192.168.1.200:dd:ee:ff,11:22:33';
       const parsed = parseMergeDevices(input);
 
       assert.equal(parsed.length, 2);
-      assert.equal(parsed[0].name, 'Terra');
+      assert.equal(parsed[0].name, 'Server');
       assert.equal(parsed[1].name, 'NAS');
       assert.equal(parsed[1].macs.length, 2);
     });

@@ -1,9 +1,9 @@
 /**
  * Parse optional MERGE_DEVICES configuration from environment.
  * Supports:
- * 1. JSON string: [{"name":"Server","ip":"192.168.1.15","primaryId":"A6:86:5A:70:71:53","macs":["a6:86:..."]}]
- * 2. Pipe-delimited shorthand: "ServerName|192.168.1.15|mac1,mac2;NAS|192.168.1.20|mac3,mac4" (recommended for IPv6)
- * 3. Colon-delimited shorthand: "ServerName:192.168.1.15:mac1,mac2" (for IPv4)
+ * 1. JSON string: [{"name":"Server","ip":"192.168.1.100","primaryId":"AA:BB:CC:DD:EE:01","macs":["aa:bb:..."]}]
+ * 2. Pipe-delimited shorthand: "Server|192.168.1.100|mac1,mac2;NAS|192.168.1.200|mac3,mac4" (recommended for IPv6)
+ * 3. Colon-delimited shorthand: "Server:192.168.1.100:mac1,mac2" (for IPv4)
  *
  * @param {string|undefined} raw
  * @returns {Array<{name: string, ip: string, primaryId: string, macs: string[]}>}

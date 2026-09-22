@@ -4,18 +4,16 @@ Integrate your Firewalla box directly into **Home Assistant** using the native [
 
 **No HACS or paid Firewalla MSP subscription required.** The bridge emulates Firewalla's REST endpoints locally on your LAN.
 
----
+## Configuration
 
-## 🚀 Quick Setup
+Add the following to your Home Assistant `configuration.yaml` (or `rest.yaml` if using `rest: !include rest.yaml`).
 
-Add the following block to your Home Assistant `configuration.yaml` (or into a `rest.yaml` file if using `rest: !include rest.yaml`).
-
-> Replace `http://192.168.1.15:7153` with your bridge's actual LAN IP and port.
+Replace `http://192.168.1.100:7153` with your bridge's LAN IP and port.
 
 ```yaml
 rest:
   # 1. Box Telemetry & WAN Metrics
-  - resource: http://192.168.1.15:7153/v2/boxes
+  - resource: http://192.168.1.100:7153/v2/boxes
     scan_interval: 60
     sensor:
       - name: "Firewalla Box Name"
@@ -41,7 +39,7 @@ rest:
         icon: mdi:shield-check
 
   # 2. Internet Speed Test Results
-  - resource: http://192.168.1.15:7153/v2/speedtest
+  - resource: http://192.168.1.100:7153/v2/speedtest
     scan_interval: 300
     sensor:
       - name: "Firewalla Download Speed"
@@ -66,7 +64,7 @@ rest:
         icon: mdi:web
 
   # 3. Security Alarms
-  - resource: http://192.168.1.15:7153/v2/alarms
+  - resource: http://192.168.1.100:7153/v2/alarms
     scan_interval: 60
     sensor:
       - name: "Firewalla Active Alarms"
@@ -74,7 +72,7 @@ rest:
         icon: mdi:alert-circle
 
   # 4. Top Bandwidth Talkers
-  - resource: http://192.168.1.15:7153/v2/flows?groupBy=device&limit=3
+  - resource: http://192.168.1.100:7153/v2/flows?groupBy=device&limit=3
     scan_interval: 60
     sensor:
       - name: "Firewalla Top Talker #1"
@@ -99,20 +97,18 @@ rest:
         icon: mdi:chart-bar
 ```
 
----
+## Authentication (Optional)
 
-## 🔒 Optional Token Authentication
+If `API_TOKEN` is enabled on your bridge, supply the `Authorization` header under each resource:
 
-If you enabled `API_TOKEN` on your bridge container, supply the `Authorization` header under each resource:
-
-1. Add your token to Home Assistant's `secrets.yaml`:
+1. Add your token to `secrets.yaml`:
    ```yaml
-   firewalla_bridge_token: "your_secret_token_here"
+   firewalla_bridge_token: "your_token_here"
    ```
-2. Add the header to the REST resources in `configuration.yaml`:
+2. Add the header to the REST resource:
    ```yaml
    rest:
-     - resource: http://192.168.1.15:7153/v2/boxes
+     - resource: http://192.168.1.100:7153/v2/boxes
        headers:
          Authorization: !secret firewalla_bridge_token
        scan_interval: 60
@@ -120,11 +116,9 @@ If you enabled `API_TOKEN` on your bridge container, supply the `Authorization` 
          ...
    ```
 
----
+## Sample Lovelace Card
 
-## 📊 Sample Lovelace Dashboard Card
-
-Once you reload your Home Assistant configuration, you can paste this into a **Lovelace Entities Card**:
+Once loaded, you can display these sensors in an Entities card:
 
 ```yaml
 type: entities
@@ -150,3 +144,8 @@ entities:
   - entity: sensor.firewalla_top_talker_2
   - entity: sensor.firewalla_top_talker_3
 ```
+
+## Related Documentation
+
+- [API Reference](api.md)
+- [Main README](../README.md)

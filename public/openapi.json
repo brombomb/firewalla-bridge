@@ -100,7 +100,7 @@
                       "model": { "type": "string", "example": "purple" },
                       "mode": { "type": "string", "example": "router" },
                       "online": { "type": "boolean", "example": true },
-                      "publicIp": { "type": "string", "example": "71.229.184.154" },
+                      "publicIp": { "type": "string", "example": "198.51.100.1" },
                       "version": { "type": "string", "example": "1.983" },
                       "uptime": { "type": "number", "example": 4989000 },
                       "deviceCount": { "type": "integer", "example": 100 },
@@ -233,9 +233,9 @@
                           "device": {
                             "type": "object",
                             "properties": {
-                              "id": { "type": "string", "example": "A6:86:5A:70:71:53" },
-                              "name": { "type": "string", "example": "Terra" },
-                              "ip": { "type": "string", "example": "192.168.1.15" }
+                              "id": { "type": "string", "example": "AA:BB:CC:DD:EE:01" },
+                              "name": { "type": "string", "example": "Server" },
+                              "ip": { "type": "string", "example": "192.168.1.100" }
                             }
                           },
                           "download": { "type": "integer", "example": 3554439792 },
@@ -295,9 +295,9 @@
                   "items": {
                     "type": "object",
                     "properties": {
-                      "id": { "type": "string", "example": "A6:86:5A:70:71:53" },
-                      "name": { "type": "string", "example": "Terra" },
-                      "ip": { "type": "string", "example": "192.168.1.15" },
+                      "id": { "type": "string", "example": "AA:BB:CC:DD:EE:01" },
+                      "name": { "type": "string", "example": "Server" },
+                      "ip": { "type": "string", "example": "192.168.1.100" },
                       "online": { "type": "boolean", "example": true },
                       "totalDownload": { "type": "number", "example": 3554439792 },
                       "totalUpload": { "type": "number", "example": 19694234101 }
@@ -435,9 +435,9 @@
                         "latencyMs": { "type": "number", "example": 11.8 },
                         "jitterMs": { "type": "number", "example": 3.6 },
                         "packetLoss": { "type": "number", "example": 0 },
-                        "isp": { "type": "string", "example": "XFINITY" },
-                        "publicIp": { "type": "string", "example": "71.229.184.154" },
-                        "server": { "type": "string", "example": "NextLight (Denver, CO)" }
+                        "isp": { "type": "string", "example": "Local Fiber ISP" },
+                        "publicIp": { "type": "string", "example": "198.51.100.1" },
+                        "server": { "type": "string", "example": "Speedtest Host (Denver, CO)" }
                       }
                     }
                   }

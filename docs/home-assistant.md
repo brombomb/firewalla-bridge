@@ -17,23 +17,29 @@ rest:
     scan_interval: 60
     sensor:
       - name: "Firewalla Box Name"
+        unique_id: firewalla_box_name
         value_template: "{{ value_json[0].name }}"
         icon: mdi:router-wireless
       - name: "Firewalla WAN IP"
+        unique_id: firewalla_wan_ip
         value_template: "{{ value_json[0].publicIp }}"
         icon: mdi:ip-network
       - name: "Firewalla Uptime"
+        unique_id: firewalla_uptime
         value_template: "{{ (value_json[0].uptime / 3600) | round(1) }}"
         unit_of_measurement: "h"
         icon: mdi:clock-outline
       - name: "Firewalla Firmware Version"
+        unique_id: firewalla_firmware_version
         value_template: "{{ value_json[0].version }}"
         icon: mdi:information-outline
       - name: "Firewalla Connected Devices"
+        unique_id: firewalla_connected_devices
         value_template: "{{ value_json[0].deviceCount }}"
         unit_of_measurement: "devices"
         icon: mdi:devices
       - name: "Firewalla Active Rules"
+        unique_id: firewalla_active_rules
         value_template: "{{ value_json[0].ruleCount }}"
         unit_of_measurement: "rules"
         icon: mdi:shield-check
@@ -43,23 +49,27 @@ rest:
     scan_interval: 300
     sensor:
       - name: "Firewalla Download Speed"
+        unique_id: firewalla_download_speed
         value_template: "{{ value_json.latest.downloadMbps }}"
-        unit_of_measurement: "Mbps"
+        unit_of_measurement: "Mbit/s"
         device_class: data_rate
         state_class: measurement
         icon: mdi:download-network
       - name: "Firewalla Upload Speed"
+        unique_id: firewalla_upload_speed
         value_template: "{{ value_json.latest.uploadMbps }}"
-        unit_of_measurement: "Mbps"
+        unit_of_measurement: "Mbit/s"
         device_class: data_rate
         state_class: measurement
         icon: mdi:upload-network
       - name: "Firewalla Ping Latency"
+        unique_id: firewalla_ping_latency
         value_template: "{{ value_json.latest.latencyMs }}"
         unit_of_measurement: "ms"
         state_class: measurement
         icon: mdi:timer-outline
       - name: "Firewalla ISP"
+        unique_id: firewalla_isp
         value_template: "{{ value_json.latest.isp }}"
         icon: mdi:web
 
@@ -68,6 +78,7 @@ rest:
     scan_interval: 60
     sensor:
       - name: "Firewalla Active Alarms"
+        unique_id: firewalla_active_alarms
         value_template: "{{ value_json.count }}"
         icon: mdi:alert-circle
 
@@ -76,24 +87,16 @@ rest:
     scan_interval: 60
     sensor:
       - name: "Firewalla Top Talker #1"
-        value_template: "{{ value_json.results[0].device.name }}"
-        attributes:
-          ip: "{{ value_json.results[0].device.ip }}"
-          download_gb: "{{ (value_json.results[0].download / 1073741824) | round(2) }}"
-          upload_gb: "{{ (value_json.results[0].upload / 1073741824) | round(2) }}"
-          total_gb: "{{ (value_json.results[0].total / 1073741824) | round(2) }}"
+        unique_id: firewalla_top_talker_1
+        value_template: "{{ value_json.results[0].device.name if value_json.results | length > 0 else 'None' }}"
         icon: mdi:chart-bar
       - name: "Firewalla Top Talker #2"
-        value_template: "{{ value_json.results[1].device.name }}"
-        attributes:
-          ip: "{{ value_json.results[1].device.ip }}"
-          total_gb: "{{ (value_json.results[1].total / 1073741824) | round(2) }}"
+        unique_id: firewalla_top_talker_2
+        value_template: "{{ value_json.results[1].device.name if value_json.results | length > 1 else 'None' }}"
         icon: mdi:chart-bar
       - name: "Firewalla Top Talker #3"
-        value_template: "{{ value_json.results[2].device.name }}"
-        attributes:
-          ip: "{{ value_json.results[2].device.ip }}"
-          total_gb: "{{ (value_json.results[2].total / 1073741824) | round(2) }}"
+        unique_id: firewalla_top_talker_3
+        value_template: "{{ value_json.results[2].device.name if value_json.results | length > 2 else 'None' }}"
         icon: mdi:chart-bar
 ```
 

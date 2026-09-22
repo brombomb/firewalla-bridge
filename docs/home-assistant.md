@@ -116,9 +116,67 @@ If `API_TOKEN` is enabled on your bridge, supply the `Authorization` header unde
          ...
    ```
 
-## Sample Lovelace Card
+## Sample Lovelace Dashboard Cards
 
-Once loaded, you can display these sensors in an Entities card:
+### Option 1: Full Dashboard Stack (Glance + Speed Gauges + Top Talkers)
+
+Paste this into any manual Lovelace card:
+
+```yaml
+type: vertical-stack
+cards:
+  - type: glance
+    title: Firewalla Network
+    show_name: true
+    show_state: true
+    entities:
+      - entity: sensor.firewalla_box_name
+        name: Box
+      - entity: sensor.firewalla_wan_ip
+        name: WAN IP
+      - entity: sensor.firewalla_uptime
+        name: Uptime
+      - entity: sensor.firewalla_connected_devices
+        name: Devices
+      - entity: sensor.firewalla_active_rules
+        name: Rules
+      - entity: sensor.firewalla_active_alarms
+        name: Alarms
+
+  - type: horizontal-stack
+    cards:
+      - type: gauge
+        entity: sensor.firewalla_download_speed
+        name: Download
+        min: 0
+        max: 1000
+        needle: true
+        severity:
+          green: 100
+          yellow: 50
+          red: 0
+      - type: gauge
+        entity: sensor.firewalla_upload_speed
+        name: Upload
+        min: 0
+        max: 100
+        needle: true
+        severity:
+          green: 20
+          yellow: 10
+          red: 0
+
+  - type: entities
+    title: Top Bandwidth Talkers
+    show_header_toggle: false
+    entities:
+      - entity: sensor.firewalla_top_talker_1
+        secondary_info: last-updated
+      - entity: sensor.firewalla_top_talker_2
+      - entity: sensor.firewalla_top_talker_3
+```
+
+### Option 2: Compact Entities Card
 
 ```yaml
 type: entities

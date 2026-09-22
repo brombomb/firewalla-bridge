@@ -95,12 +95,83 @@ If you have a server or NAS with link aggregation (e.g. Linux `bond0` in `balanc
 MERGE_DEVICES="Server:192.168.1.100:mac1,mac2;NAS:192.168.1.200:mac3,mac4"
 ```
 
-## Integrations & Documentation
+## Integrations
 
-- **Home Assistant:** See the [Home Assistant Integration Guide](docs/home-assistant.md) for ready-to-use YAML configs and a Lovelace card.
-- **Tronbyt / Tidbyt:** In your app settings, select `Local Bridge (Docker / LAN)` and enter `http://<HOST_IP>:7153`.
-- **REST API Reference:** See the [API Documentation](docs/api.md) for endpoints, query parameters, and example responses.
-- **Interactive Docs:** When the container is running, open `http://<HOST_IP>:7153/docs` for interactive Scalar/OpenAPI documentation.
+### Tronbyt / Tidbyt Apps
+
+Three community apps are available for Tronbyt and Tidbyt smart pixel displays:
+
+* **[Firewalla Network](https://tronbyt.github.io/apps/details/firewallanetwork.html):** Real-time WAN IP, router uptime, connected device count, and active policy rules.
+* **[Firewalla Alarms](https://tronbyt.github.io/apps/details/firewallaalarms.html):** Security threat counts and active security alerts.
+* **[Firewalla Top Talkers](https://tronbyt.github.io/apps/details/firewallatalkers.html):** Real-time bandwidth hog monitoring by device name and transfer volume.
+
+**Setup in Tronbyt:** In your app settings, select **Connection** → `Local Bridge (Docker / LAN)` and enter your bridge URL: `http://<HOST_IP>:7153`.
+
+### Home Assistant
+
+Monitor your Firewalla box natively with zero cloud or HACS dependencies using Home Assistant's built-in `rest` platform.
+
+* **[Home Assistant Setup Guide](docs/home-assistant.md):** Complete `configuration.yaml` sensor definitions for WAN metrics, speed test results, security alarms, and top talkers.
+* **Ready-to-Paste Dashboard Card:** Paste this into any manual Lovelace card in Home Assistant:
+
+```yaml
+type: vertical-stack
+cards:
+  - type: glance
+    title: Firewalla Network
+    show_name: true
+    show_state: true
+    entities:
+      - entity: sensor.firewalla_box_name
+        name: Box
+      - entity: sensor.firewalla_wan_ip
+        name: WAN IP
+      - entity: sensor.firewalla_uptime
+        name: Uptime
+      - entity: sensor.firewalla_connected_devices
+        name: Devices
+      - entity: sensor.firewalla_active_rules
+        name: Rules
+      - entity: sensor.firewalla_active_alarms
+        name: Alarms
+
+  - type: horizontal-stack
+    cards:
+      - type: gauge
+        entity: sensor.firewalla_download_speed
+        name: Download
+        min: 0
+        max: 1000
+        needle: true
+        severity:
+          green: 100
+          yellow: 50
+          red: 0
+      - type: gauge
+        entity: sensor.firewalla_upload_speed
+        name: Upload
+        min: 0
+        max: 100
+        needle: true
+        severity:
+          green: 20
+          yellow: 10
+          red: 0
+
+  - type: entities
+    title: Top Bandwidth Talkers
+    show_header_toggle: false
+    entities:
+      - entity: sensor.firewalla_top_talker_1
+        secondary_info: last-updated
+      - entity: sensor.firewalla_top_talker_2
+      - entity: sensor.firewalla_top_talker_3
+```
+
+## Documentation & API
+
+- **[API Reference](docs/api.md):** Complete documentation for all REST endpoints, query parameters, and example JSON payloads.
+- **Interactive OpenAPI / Swagger:** When the bridge container is running, open `http://<HOST_IP>:7153/docs` for interactive Scalar documentation with live request execution.
 
 ## Development
 

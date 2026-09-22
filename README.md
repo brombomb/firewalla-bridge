@@ -101,11 +101,12 @@ MERGE_DEVICES="Server:192.168.1.100:mac1,mac2;NAS:192.168.1.200:mac3,mac4"
 
 Three community apps are available for Tronbyt and Tidbyt smart pixel displays:
 
-* **[Firewalla Network](https://tronbyt.github.io/apps/details/firewallanetwork.html):** Real-time WAN IP, router uptime, connected device count, and active policy rules.
-* **[Firewalla Alarms](https://tronbyt.github.io/apps/details/firewallaalarms.html):** Security threat counts and active security alerts.
-* **[Firewalla Top Talkers](https://tronbyt.github.io/apps/details/firewallatalkers.html):** Real-time bandwidth hog monitoring by device name and transfer volume.
+| [Firewalla Network](https://tronbyt.github.io/apps/details/firewallanetwork.html) | [Firewalla Security](https://tronbyt.github.io/apps/details/firewallaalarms.html) | [Firewalla Top Talkers](https://tronbyt.github.io/apps/details/firewallatalkers.html) |
+| :---: | :---: | :---: |
+| <a href="https://tronbyt.github.io/apps/details/firewallanetwork.html"><img src="https://tronbyt.github.io/apps/apps/firewallanetwork/firewallanetwork@2x.webp" alt="Firewalla Network" width="220" /></a> | <a href="https://tronbyt.github.io/apps/details/firewallaalarms.html"><img src="https://tronbyt.github.io/apps/apps/firewallaalarms/firewallaalarms@2x.webp" alt="Firewalla Security" width="220" /></a> | <a href="https://tronbyt.github.io/apps/details/firewallatalkers.html"><img src="https://tronbyt.github.io/apps/apps/firewallatalkers/firewallatalkers@2x.webp" alt="Firewalla Top Talkers" width="220" /></a> |
+| WAN IP, router uptime, online devices & blocked flows | Real-time security alarms, alerts ticker & shield | Top bandwidth consumers (1h live & 24h summary) |
 
-**Setup in Tronbyt:** In your app settings, select **Connection** → `Local Bridge (Docker / LAN)` and enter your bridge URL: `http://<HOST_IP>:7153`.
+**Setup in Tronbyt:** In app settings, select **Connection** → `Local Bridge (Docker / LAN)` and enter your bridge URL: `http://<HOST_IP>:7153`.
 
 ### Home Assistant
 

@@ -1,6 +1,6 @@
 # Firewalla Local Bridge
 
-A lightweight, modular, self-hosted Docker bridge that connects directly to your Firewalla box's local API (port 8833) and translates it into clean REST endpoints compatible with **Tronbyt**, **Tidbyt**, **Home Assistant**, and custom homelab dashboards.
+A lightweight, modular, self-hosted Docker bridge that connects directly to your Firewalla box's local API and translates it into clean REST endpoints compatible with **Home Assistant**, **Tronbyt**, and custom homelab dashboards.
 
 **No paid Firewalla MSP subscription required.** Works with standalone Firewalla boxes (Purple, Gold, Red, Blue) and boxes on MSP Lite.
 
@@ -8,43 +8,12 @@ A lightweight, modular, self-hosted Docker bridge that connects directly to your
 
 ## ✨ Features
 
-* **Zero Cloud Dependency:** Communicates directly with your Firewalla box over your local LAN (ETP on port 8833).
-* **MSP REST Compatibility:** Emulates standard Firewalla MSP endpoints (`/v2/boxes`, `/v2/alarms`, `/v2/flows`, `/v2/rules`, etc.).
-* **Home Assistant Ready:** Exposes `/v2/rules` and `/v2/speedtest` for easy sensor/switch automation.
-* **One-Step QR Pairing:** Built-in pairing wizard (`npm run pair`) handles cryptographic key generation with secure `0600` permissions.
-* **Single-Flight Cache Lock:** Prevents cache stampedes and eliminates redundant cryptographic requests to the Firewalla box.
+* **Zero Cloud Dependency:** Communicates directly with your Firewalla box over your local LAN.
+* **MSP REST Compatibility:** Emulates standard Firewalla MSP endpoints.
+* **One-Step QR Pairing:** Built-in pairing wizard handles cryptographic key generation.
 * **Smart Alarm Filtering:** Automatically filters out muted notifications and exception/whitelisted rules to match real security events.
 * **Bonded NIC / Multi-MAC Merging:** Aggregates multi-NIC servers (e.g. LACP or `balance-alb` bonds) into a single virtual device.
-* **Optional Token Authentication:** Protects sensitive LAN device telemetry with standard `Authorization: Token <token>` headers.
-* **Modular Codebase:** Clean Express architecture separated into `client`, `middleware`, `routes`, and `utils`.
-
----
-
-## 📂 Project Architecture
-
-```
-src/
-├── client/
-│   ├── cache.js         # In-memory cache & helper getters
-│   └── firewalla.js     # ETP client init, box services & single-flight refresh
-├── middleware/
-│   ├── auth.js          # Optional API_TOKEN authentication
-│   └── errorHandler.js  # Centralized error handler
-├── routes/
-│   ├── index.js         # '/' (HTML dashboard) & '/health'
-│   ├── boxes.js         # '/v2/boxes' (enriched telemetry)
-│   ├── alarms.js        # '/v2/alarms', '/v2/trends/alarms'
-│   ├── flows.js         # '/v2/flows', '/v2/trends/flows'
-│   ├── devices.js       # '/v2/devices'
-│   ├── rules.js         # '/v2/rules' (MSP policy rules)
-│   └── speedtest.js     # '/v2/speedtest' (latest & history)
-├── utils/
-│   ├── alarms.js        # Alarm exception & disturbance filters
-│   ├── merge.js         # NIC bonding / multi-MAC parser
-│   └── sanitize.js      # HTML escaping & query string guards
-├── pair.js              # One-time cryptographic pairing tool
-└── server.js            # Express application coordinator
-```
+* **Optional Token Authentication:** Protects sensitive LAN device telemetry with standard headers.
 
 ---
 
@@ -73,7 +42,7 @@ The pairing step registers your bridge container as an authorized local client o
    * **Email label:** Enter an identifier (e.g. `dashboard@home.local` — used only for display in the app).
    * **QR code JSON:** Paste the JSON string from step 4.
    * **Firewalla IP:** Enter your Firewalla box's local LAN IP (e.g. `192.168.1.1`).
-7. The pairing script generates your cryptographic keys (`etp.private.pem` and `etp.public.pem`) directly in the `./keys/` directory with `0600` permissions.
+7. The pairing script generates your cryptographic keys.
 
 ### Step 3: Start the Bridge
 
@@ -122,7 +91,6 @@ To prevent unauthorized devices on your LAN from accessing network telemetry:
    ```bash
    curl -H "Authorization: Token your_secret_token" http://localhost:7153/v2/devices
    ```
-   *(Timing-attack resistant verification with constant-time SHA-256 comparison)*
 
 ### 🔗 Merging Bonded Interfaces (Optional)
 
@@ -154,23 +122,6 @@ All Tronbyt Firewalla apps (**Firewalla Network**, **Firewalla Top Talkers**, an
 ### 🏠 Home Assistant
 Home Assistant can monitor your Firewalla box natively using its built-in `rest` sensor platform with zero HACS or cloud dependencies.
 * **[View the Home Assistant Integration Guide & Ready-to-Copy YAML](docs/home-assistant.md)** for sensors covering WAN telemetry, speed test results, active alarms, and top talkers.
-
----
-
-## 📡 Available API Endpoints
-
-| Endpoint | Description |
-| :--- | :--- |
-| `GET /health` | Bridge connection status, device count, and active alarm count |
-| `GET /v2/boxes` | Box model, name, mode, WAN IP, firmware version, uptime, client & rule counts |
-| `GET /v2/rules` | Firewall policy rules with action, target, category, and status |
-| `GET /v2/trends/rules` | Rule activity trend line |
-| `GET /v2/speedtest` | Latest WAN speed test results (download, upload, latency, jitter, loss) |
-| `GET /v2/alarms` | Active security alerts (auto-filters muted/whitelisted rules) |
-| `GET /v2/alarms?filter=security` | Active security threat alarms only |
-| `GET /v2/trends/alarms` | 7-day alarm frequency trend |
-| `GET /v2/flows?groupBy=device` | Top bandwidth consumers sorted descending (supports `?period=1h`) |
-| `GET /v2/devices` | All LAN devices with download/upload stats and online state |
 
 ---
 

@@ -2,7 +2,7 @@ import { SecureUtil, FWGroupApi, FWGroup, NetworkService } from 'node-firewalla'
 import validator from 'validator';
 import inquirer from 'inquirer';
 import fs from 'fs';
-import { validateQrCode } from './utils/pairing.js';
+import { validateQrCode, parseQrCode } from './utils/pairing.js';
 
 const KEY_DIR = process.env.KEY_DIR || './keys';
 
@@ -121,12 +121,25 @@ async function run() {
 
   const answers = await inquirer.prompt(questions);
 
+  const qrResult = parseQrCode(answers.qr);
+  if (!qrResult.ok) {
+    console.error(`\n❌ QR code error: ${qrResult.error}`);
+    if (qrResult.hint) console.error(`   💡 Tip: ${qrResult.hint}`);
+    process.exit(1);
+  }
+
+  console.log(`\n✅ Valid Firewalla QR code detected:`);
+  console.log(`   - Target Box ID: ${qrResult.data.gid}`);
+  if (qrResult.expiresInMinutes) {
+    console.log(`   - QR Code Valid For: ~${qrResult.expiresInMinutes} minute(s)`);
+  }
+
   console.log('\nGenerating cryptographic ETP keypair...');
   SecureUtil.regenerateKeyPair();
 
   try {
     console.log(`Connecting to Firewalla at ${answers.localIp}...`);
-    const fwGroup = await joinFirewallaGroup(JSON.parse(answers.qr.trim()), answers.email, answers.localIp);
+    const fwGroup = await joinFirewallaGroup(qrResult.data, answers.email, answers.localIp);
     const nwService = new NetworkService(fwGroup);
     await nwService.ping();
 

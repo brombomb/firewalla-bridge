@@ -1,12 +1,90 @@
-import { SecureUtil, FWGroupApi, NetworkService } from 'node-firewalla';
+import { SecureUtil, FWGroupApi, FWGroup, NetworkService } from 'node-firewalla';
 import validator from 'validator';
 import inquirer from 'inquirer';
 import fs from 'fs';
+import { validateQrCode } from './utils/pairing.js';
 
 const KEY_DIR = process.env.KEY_DIR || './keys';
 
 if (!fs.existsSync(KEY_DIR)) {
   fs.mkdirSync(KEY_DIR, { recursive: true, mode: 0o700 });
+}
+
+async function joinFirewallaGroup(qrcode, email, localIp) {
+  // 1. Decrypt rendezvous ID with license prefix, fallback to cybersecuritymadesimple
+  let rid = null;
+  const prefixes = [
+    qrcode.license ? qrcode.license.substring(0, 8) : '',
+    'cybersecuritymadesimple',
+  ].filter(Boolean);
+
+  let decryptErr = null;
+  for (const prefix of prefixes) {
+    try {
+      const aesKey = prefix + qrcode.seed;
+      const dec = SecureUtil.aesDecrypt(qrcode.ek, aesKey);
+      if (dec && dec.length > 5) {
+        rid = dec;
+        break;
+      }
+    } catch (e) {
+      decryptErr = e;
+    }
+  }
+
+  if (!rid) {
+    throw new Error(`Could not decrypt rendezvous token from QR code: ${decryptErr?.message || 'invalid key'}`);
+  }
+
+  console.log(`[1/4] Decrypted rendezvous ID (${rid.substring(0, 8)}...).`);
+  console.log(`[2/4] Requesting ETP authorization token from Firewalla cloud for ${email}...`);
+
+  const loginRes = await FWGroupApi.login(email);
+  if (!loginRes || !loginRes.access_token) {
+    throw new Error(`Failed to obtain access token from Firewalla cloud: ${JSON.stringify(loginRes)}`);
+  }
+
+  FWGroupApi.setAuth(loginRes.access_token);
+
+  console.log(`[3/4] Registering rendezvous signal with Firewalla cloud...`);
+  await FWGroupApi.startRendezVous(rid, qrcode.license);
+
+  console.log(`[4/4] Waiting for Firewalla box to approve pairing...`);
+  console.log(`      IMPORTANT: Keep the Firewalla app OPEN on the QR code screen!`);
+
+  const maxTries = 25; // 75 seconds total
+  let matchedGroup = null;
+
+  for (let tryCount = 1; tryCount <= maxTries; tryCount++) {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const pollRes = await FWGroupApi.login(email);
+    const groups = pollRes.groups || [];
+
+    const targetGid = (qrcode.gid || '').toLowerCase();
+    matchedGroup = groups.find((g) => {
+      const gId = (g._id || g.gid || '').toLowerCase();
+      return gId === targetGid;
+    });
+
+    if (matchedGroup) {
+      console.log(`\n✅ Box approved the pairing session!`);
+      break;
+    }
+
+    process.stdout.write(`\r      Waiting for box approval... (${tryCount}/${maxTries}) [visible boxes: ${groups.length}]`);
+  }
+
+  if (!matchedGroup) {
+    throw new Error(
+      `Handshake timed out after ${maxTries * 3} seconds.\n\n` +
+      `Troubleshooting tips:\n` +
+      `1. Make sure your Firewalla mobile app remains OPEN and active on the QR code screen.\n` +
+      `2. Verify that the email entered (${email}) matches your primary Firewalla account email.\n` +
+      `3. If the QR code was on screen for more than a few minutes, toggle "Allow Additional Pairing" OFF and ON for a fresh QR code.`
+    );
+  }
+
+  return FWGroup.fromJson(matchedGroup, localIp);
 }
 
 async function run() {
@@ -17,14 +95,14 @@ async function run() {
   console.log('2. Go to: Settings -> Advanced -> Allow Additional Pairing');
   console.log('3. Turn on "Additional Pairing" to display the QR code.');
   console.log('4. Scan or screenshot the QR code and copy the JSON content.\n');
+  console.log('⚠️  IMPORTANT: Keep the QR code visible on your phone screen until pairing finishes!\n');
 
   const questions = [
     {
       type: 'input',
       name: 'email',
-      message: 'Email label (for identification only):',
-      default: 'bridge@home.local',
-      validate: (email) => (!validator.isEmail(email) ? 'Invalid email' : true),
+      message: 'Email associated with your Firewalla account:',
+      validate: (email) => (!validator.isEmail(email) ? 'Please enter a valid email address' : true),
     },
     {
       type: 'input',
@@ -48,7 +126,7 @@ async function run() {
 
   try {
     console.log(`Connecting to Firewalla at ${answers.localIp}...`);
-    const fwGroup = await FWGroupApi.joinGroup(JSON.parse(answers.qr.trim()), answers.email, answers.localIp);
+    const fwGroup = await joinFirewallaGroup(JSON.parse(answers.qr.trim()), answers.email, answers.localIp);
     const nwService = new NetworkService(fwGroup);
     await nwService.ping();
 
@@ -75,23 +153,8 @@ async function run() {
     console.log('You can now start the bridge service with:');
     console.log('   docker compose up -d\n');
   } catch (err) {
-    console.error('\nError linking to Firewalla box:', err.message || err);
+    console.error('\nError linking to Firewalla box:\n', err.message || err);
     process.exit(1);
-  }
-}
-
-function validateQrCode(qr) {
-  try {
-    const parsed = JSON.parse(qr.trim());
-    const required = ['gid', 'seed', 'license', 'ek', 'ipaddress'];
-    for (const field of required) {
-      if (!(field in parsed)) {
-        return `Missing field "${field}" in QR code JSON`;
-      }
-    }
-    return true;
-  } catch (err) {
-    return 'QR code content must be valid JSON';
   }
 }
 

@@ -1,8 +1,8 @@
-import { SecureUtil, FWGroupApi, FWGroup, NetworkService } from 'node-firewalla';
+import { SecureUtil, FWGroupApi, NetworkService } from 'node-firewalla';
 import validator from 'validator';
 import inquirer from 'inquirer';
 import fs from 'fs';
-import { validateQrCode, parseQrCode } from './utils/pairing.js';
+import { validateQrCode, parseQrCode, createFWGroup, formatDetailedError } from './utils/pairing.js';
 
 const KEY_DIR = process.env.KEY_DIR || './keys';
 
@@ -84,7 +84,7 @@ async function joinFirewallaGroup(qrcode, email, localIp) {
     );
   }
 
-  return FWGroup.fromJson(matchedGroup, localIp);
+  return createFWGroup(matchedGroup, localIp);
 }
 
 async function run() {
@@ -140,12 +140,8 @@ async function run() {
   try {
     console.log(`Connecting to Firewalla at ${answers.localIp}...`);
     const fwGroup = await joinFirewallaGroup(qrResult.data, answers.email, answers.localIp);
-    const nwService = new NetworkService(fwGroup);
-    await nwService.ping();
 
-    console.log('Ping successful! Authorizing device...');
-    await FWGroupApi.login(answers.email);
-
+    // CRITICAL: Save cryptographic keys IMMEDIATELY upon successful cloud/box pairing approval
     const privKeyPath = `${KEY_DIR}/etp.private.pem`;
     const pubKeyPath = `${KEY_DIR}/etp.public.pem`;
 
@@ -163,10 +159,25 @@ async function run() {
     console.log(`   - ${privKeyPath} (mode: 0600)`);
     console.log(`   - ${pubKeyPath}`);
     console.log('==============================================\n');
+
+    // Advisory local connectivity check (non-fatal)
+    console.log(`Verifying local communication with Firewalla at ${answers.localIp}:8833...`);
+    try {
+      const nwService = new NetworkService(fwGroup);
+      await nwService.ping();
+      console.log('✅ Local box communication verified successfully!');
+    } catch (testErr) {
+      console.warn('\n⚠️  Advisory Note: Local connectivity verification returned:');
+      console.warn('   ' + formatDetailedError(testErr));
+      console.warn('\n   Your pairing keys ARE safely saved! The bridge container can now be started.');
+      console.warn(`   If the bridge fails to connect locally, verify that port 8833 is accessible at ${answers.localIp}.\n`);
+    }
+
     console.log('You can now start the bridge service with:');
     console.log('   docker compose up -d\n');
   } catch (err) {
-    console.error('\nError linking to Firewalla box:\n', err.message || err);
+    console.error('\nError linking to Firewalla box:');
+    console.error(formatDetailedError(err));
     process.exit(1);
   }
 }

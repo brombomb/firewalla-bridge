@@ -9,6 +9,7 @@ import {
   InitService,
 } from 'node-firewalla';
 import { cache, CACHE_TTL_MS } from './cache.js';
+import { createFWGroup } from '../utils/pairing.js';
 
 export const FIREWALLA_IP = process.env.FIREWALLA_IP || '192.168.1.1';
 export const KEY_DIR = process.env.KEY_DIR || './keys';
@@ -73,7 +74,7 @@ export async function initFirewalla() {
         return false;
       }
 
-      fwGroup = FWGroup.fromJson(groups[0], FIREWALLA_IP);
+      fwGroup = createFWGroup(groups[0], FIREWALLA_IP);
       hostService = new HostService(fwGroup);
       alarmService = new AlarmService(fwGroup);
       networkService = new NetworkService(fwGroup);

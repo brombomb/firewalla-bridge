@@ -1,6 +1,4 @@
-/**
- * Firewalla pairing and QR code validation utilities.
- */
+import { SecureUtil, FWGroup } from 'node-firewalla';
 
 /**
  * Normalizes raw QR code input by stripping common copy/paste and scanner artifacts:
@@ -139,3 +137,97 @@ export function validateQrCode(qr, now = Date.now()) {
   }
   return true;
 }
+
+/**
+ * Constructs an FWGroup instance by selecting the specific symmetric key that
+ * successfully decrypts with this node's private RSA key (avoiding the hardcoded
+ * symmetricKeys[0] assumption when multiple client devices/phones are paired).
+ *
+ * @param {object} groupObj - Raw group object from Firewalla cloud login
+ * @param {string} localIp - Local LAN IP address of the Firewalla box
+ * @returns {FWGroup} Initialized FWGroup instance
+ */
+export function createFWGroup(groupObj, localIp) {
+  const { _id, eid, aid, symmetricKeys, name } = groupObj;
+
+  if (!Array.isArray(symmetricKeys) || symmetricKeys.length === 0) {
+    return FWGroup.fromJson(groupObj, localIp);
+  }
+
+  let selectedCipher = null;
+  let decryptedPlain = null;
+
+  for (let i = 0; i < symmetricKeys.length; i++) {
+    const item = symmetricKeys[i];
+    const cipher = typeof item === 'string' ? item : (item && item.key);
+    if (!cipher) continue;
+    try {
+      const plain = SecureUtil.rsaDecrypt(cipher);
+      if (plain && plain.length > 0) {
+        selectedCipher = cipher;
+        decryptedPlain = plain;
+        break;
+      }
+    } catch (_) {
+      // Key was encrypted for a different paired device (e.g. phone)
+    }
+  }
+
+  // Fallback to first key if decryption check couldn't find one
+  if (!selectedCipher) {
+    selectedCipher = typeof symmetricKeys[0] === 'string' ? symmetricKeys[0] : (symmetricKeys[0] && symmetricKeys[0].key);
+  }
+
+  const fwGroup = new FWGroup(_id, eid, aid, selectedCipher, name, localIp);
+  if (decryptedPlain) {
+    fwGroup.symmetricKeyPlain = decryptedPlain;
+  }
+  return fwGroup;
+}
+
+/**
+ * Formats errors with complete diagnostic visibility, ensuring hidden,
+ * non-enumerable, or object-based errors (like { code: 400 }) do not display as empty `{}`.
+ *
+ * @param {*} err - Error or exception caught
+ * @returns {string} Formatted, human-readable error description
+ */
+export function formatDetailedError(err) {
+  if (!err) return 'Unknown error';
+  if (typeof err === 'string') return err;
+
+  const parts = [];
+  if (err.message) parts.push(`Message: ${err.message}`);
+  if (err.code) parts.push(`Code: ${err.code}`);
+  if (err.status) parts.push(`Status: ${err.status}`);
+  if (err.statusCode) parts.push(`StatusCode: ${err.statusCode}`);
+  if (err.errno) parts.push(`Errno: ${err.errno}`);
+  if (err.syscall) parts.push(`Syscall: ${err.syscall}`);
+  if (err.hostname) parts.push(`Hostname: ${err.hostname}`);
+
+  if (err.response) {
+    const respStr = typeof err.response === 'object' ? JSON.stringify(err.response) : String(err.response);
+    parts.push(`Response: ${respStr}`);
+  }
+
+  try {
+    const allProps = {};
+    const propNames = Object.getOwnPropertyNames(err);
+    for (const key of propNames) {
+      if (key !== 'stack') {
+        allProps[key] = err[key];
+      }
+    }
+    const jsonStr = JSON.stringify(allProps, null, 2);
+    if (jsonStr && jsonStr !== '{}') {
+      parts.push(`Details: ${jsonStr}`);
+    }
+  } catch (_) {}
+
+  if (err.stack && parts.length === 0) {
+    parts.push(err.stack);
+  }
+
+  return parts.length > 0 ? parts.join('\n   ') : JSON.stringify(err);
+}
+

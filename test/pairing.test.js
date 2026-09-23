@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { cleanQrCodeString, parseQrCode, validateQrCode } from '../src/utils/pairing.js';
+import { cleanQrCodeString, parseQrCode, validateQrCode, formatDetailedError, createFWGroup } from '../src/utils/pairing.js';
 
 describe('Pairing Utilities (src/utils/pairing.js)', () => {
   const validQr = {
@@ -90,6 +90,48 @@ describe('Pairing Utilities (src/utils/pairing.js)', () => {
       const res = validateQrCode('not json');
       assert.match(res, /Malformed JSON/);
       assert.match(res, /💡 Tip:/);
+    });
+  });
+
+  describe('formatDetailedError()', () => {
+    it('formats plain string errors directly', () => {
+      assert.equal(formatDetailedError('sample error'), 'sample error');
+    });
+
+    it('formats Error instance with message and code', () => {
+      const err = new Error('connection timed out');
+      err.code = 'ETIMEDOUT';
+      const formatted = formatDetailedError(err);
+      assert.match(formatted, /Message: connection timed out/);
+      assert.match(formatted, /Code: ETIMEDOUT/);
+    });
+
+    it('formats object error like { code: 400, data: {} } without displaying as empty {}', () => {
+      const err = { code: 400, data: {} };
+      const formatted = formatDetailedError(err);
+      assert.match(formatted, /Code: 400/);
+      assert.match(formatted, /"code": 400/);
+    });
+
+    it('handles null/undefined gracefully', () => {
+      assert.equal(formatDetailedError(null), 'Unknown error');
+      assert.equal(formatDetailedError(undefined), 'Unknown error');
+    });
+  });
+
+  describe('createFWGroup()', () => {
+    it('constructs FWGroup using fallback when no symmetric keys decryptable', () => {
+      const mockGroup = {
+        _id: 'test-gid',
+        eid: 'test-eid',
+        aid: 'test-aid',
+        name: 'Firewalla Box',
+        symmetricKeys: [{ key: 'fake-cipher-1' }, { key: 'fake-cipher-2' }],
+      };
+      const group = createFWGroup(mockGroup, '192.168.1.1');
+      assert.equal(group.gid, 'test-gid');
+      assert.equal(group.symmetricKeyCipher, 'fake-cipher-1');
+      assert.equal(group.localIp, '192.168.1.1');
     });
   });
 });

@@ -45,6 +45,17 @@
       gap: 0.5rem;
       font-size: 1.6rem;
     }
+    .version-tag {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      background: #1F242C;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.2rem 0.6rem;
+      margin-left: auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
     .status-badge {
       display: inline-flex;
       align-items: center;
@@ -154,7 +165,7 @@
 </head>
 <body>
   <div class="card">
-    <h1>🔥 Firewalla Local Bridge</h1>
+    <h1>🔥 Firewalla Local Bridge <span id="bridgeVersion" class="version-tag">v1.1.0</span></h1>
     <div id="statusBadge" class="status-badge unpaired">
       <span class="pulse"></span> <span id="statusText">CONNECTING...</span>
     </div>
@@ -196,6 +207,8 @@
       <li><a href="/v2/alarms">/v2/alarms</a> <span class="desc">Active security alerts</span></li>
       <li><a href="/v2/trends/flows">/v2/trends/flows</a> <span class="desc">24h threat sparkline data</span></li>
       <li><a href="/v2/flows?groupBy=device">/v2/flows?groupBy=device</a> <span class="desc">Top bandwidth devices</span></li>
+      <li><a href="/v2/bandwidth">/v2/bandwidth</a> <span class="desc">Live throughput & monthly usage</span></li>
+      <li><a href="/v2/bandwidth/history">/v2/bandwidth/history</a> <span class="desc">60m historical throughput buckets</span></li>
       <li><a href="/v2/devices">/v2/devices</a> <span class="desc">All LAN devices</span></li>
       <li><a href="/v2/rules">/v2/rules</a> <span class="desc">Firewall policy rules</span></li>
       <li><a href="/v2/speedtest">/v2/speedtest</a> <span class="desc">WAN speed test metrics</span></li>
@@ -226,6 +239,10 @@
         const res = await fetch('/health');
         if (!res.ok) throw new Error('Health check returned ' + res.status);
         const data = await res.json();
+
+        if (data.version) {
+          document.getElementById('bridgeVersion').textContent = 'v' + data.version;
+        }
 
         const badge = document.getElementById('statusBadge');
         const text = document.getElementById('statusText');

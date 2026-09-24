@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { refreshCache, getFwGroup, getBoxDisplayName, FIREWALLA_IP } from '../client/firewalla.js';
 import { cache, getHostList, getAlarmList, getInitData } from '../client/cache.js';
@@ -10,6 +11,13 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 const router = Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const INDEX_HTML_PATH = path.resolve(__dirname, '../../public/index.html');
+const PKG_PATH = path.resolve(__dirname, '../../package.json');
+
+let bridgeVersion = '1.1.0';
+try {
+  const pkg = JSON.parse(fs.readFileSync(PKG_PATH, 'utf8'));
+  if (pkg.version) bridgeVersion = pkg.version;
+} catch (_) {}
 
 // GET /: Serves index.html to browsers or JSON status to API clients
 router.get('/', asyncHandler(async (req, res) => {
@@ -23,6 +31,7 @@ router.get('/', asyncHandler(async (req, res) => {
   if (!isAuthenticated(req)) {
     return res.json({
       name: 'Firewalla Local Bridge',
+      version: bridgeVersion,
       status: isConnected ? 'connected' : 'unpaired',
       uptime: Math.floor(process.uptime()),
     });
@@ -44,6 +53,7 @@ router.get('/', asyncHandler(async (req, res) => {
 
   res.json({
     name: 'Firewalla Local Bridge',
+    version: bridgeVersion,
     status: isConnected ? 'connected' : 'unpaired',
     boxName: getBoxDisplayName(),
     firewallaIp: FIREWALLA_IP,
@@ -62,6 +72,7 @@ router.get('/health', asyncHandler(async (req, res) => {
   if (!isAuthenticated(req)) {
     return res.json({
       status: isConnected ? 'connected' : 'unpaired',
+      version: bridgeVersion,
       uptime: Math.floor(process.uptime()),
     });
   }
@@ -81,6 +92,7 @@ router.get('/health', asyncHandler(async (req, res) => {
 
   res.json({
     status: isConnected ? 'connected' : 'unpaired',
+    version: bridgeVersion,
     firewallaIp: FIREWALLA_IP,
     boxName: getBoxDisplayName(),
     cachedDevices: hostList.length,

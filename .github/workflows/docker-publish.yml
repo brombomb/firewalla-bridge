@@ -66,6 +66,8 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=sha-
 
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v6
